@@ -51,6 +51,8 @@ export default function RoomDetailPage({ params }: { params: Promise<{ id: strin
   const [nightlyRate, setNightlyRate] = useState(room?.nightlyRate?.toString() || '2500');
   const [ciErrors, setCiErrors] = useState<{ checkOut?: string; rate?: string }>({});
 
+  const [showEditGuestForm, setShowEditGuestForm] = useState(false);
+
   // Multi-room state
   const [multiRoom, setMultiRoom] = useState(false);
   const [extraRoomIds, setExtraRoomIds] = useState<string[]>([]);
@@ -436,6 +438,8 @@ export default function RoomDetailPage({ params }: { params: Promise<{ id: strin
         {/* ─── TAB: GUEST ─── */}
         {activeTab === 'guest' && (
           <div className="space-y-5 page-enter">
+
+            {/* Vacant — no check-in form open */}
             {room.status === 'vacant' && !showCheckInForm && (
               <div className="rounded-2xl p-4 text-center" style={{ background: '#FFFDF9', border: '1px solid rgba(212,135,58,0.2)' }}>
                 <p className="text-2xl mb-2">👤</p>
@@ -444,20 +448,8 @@ export default function RoomDetailPage({ params }: { params: Promise<{ id: strin
                 <button onClick={() => { setActiveTab('info'); setShowCheckInForm(true); }} className="px-4 py-2 rounded-xl text-sm font-semibold text-white" style={{ background: 'linear-gradient(135deg, #1C3A2A, #2A5A40)' }}>Set Dates →</button>
               </div>
             )}
-            {(room.status === 'occupied' || showCheckInForm) && !groupBooking && (
-              <div className="rounded-2xl p-4" style={{ background: '#FFFDF9', border: '1px solid rgba(28,58,42,0.08)' }}>
-                <p className="text-xs font-semibold uppercase tracking-wide mb-4" style={{ color: '#7A7A6E' }}>
-                  {room.guest ? 'Guest Details' : 'Add Guest'}
-                </p>
-                <GuestForm
-                  initialGuest={room.guest}
-                  onSave={(guest) => {
-                    if (showCheckInForm) handleCheckIn(guest);
-                    else { updateGuest(room.id, guest); toast.success('Guest details saved'); }
-                  }}
-                />
-              </div>
-            )}
+
+            {/* Group booking redirect */}
             {groupBooking && (
               <div className="rounded-2xl p-4 text-center" style={{ background: '#FFFDF9', border: '1px solid rgba(37,99,235,0.2)' }}>
                 <p className="text-sm font-medium mb-3" style={{ color: '#1A1A1A' }}>Guest details managed in group booking</p>
@@ -466,47 +458,116 @@ export default function RoomDetailPage({ params }: { params: Promise<{ id: strin
                 </button>
               </div>
             )}
-            {room.guest && room.status === 'occupied' && !groupBooking && (
-              <div className="rounded-2xl p-4 space-y-3" style={{ background: 'rgba(28,58,42,0.04)', border: '1px solid rgba(28,58,42,0.1)' }}>
-                <p className="text-xs font-semibold uppercase tracking-wide" style={{ color: '#7A7A6E' }}>Saved Info</p>
-                <div className="grid grid-cols-2 gap-3 text-sm">
-                  <div><p className="text-xs" style={{ color: '#7A7A6E' }}>Name</p><p className="font-medium" style={{ color: '#1A1A1A' }}>{room.guest.fullName}</p></div>
-                  <div>
-                    <p className="text-xs mb-0.5" style={{ color: '#7A7A6E' }}>Phone</p>
-                    <div className="flex items-center gap-2">
-                      <p className="font-medium" style={{ color: '#1A1A1A' }}>{room.guest.phone}</p>
-                      {room.guest.phone && (
-                        <a
-                          href={`https://wa.me/91${room.guest.phone.replace(/\D/g, '')}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-semibold transition-all active:scale-90"
-                          style={{ background: 'rgba(37,211,102,0.12)', color: '#128C7E' }}
-                        >
-                          <MessageCircle size={12} />
-                          WhatsApp
-                        </a>
+
+            {/* Occupied, no group — check-in form (new guest) */}
+            {showCheckInForm && !groupBooking && (
+              <div className="rounded-2xl p-4" style={{ background: '#FFFDF9', border: '1px solid rgba(28,58,42,0.08)' }}>
+                <p className="text-xs font-semibold uppercase tracking-wide mb-4" style={{ color: '#7A7A6E' }}>Add Guest</p>
+                <GuestForm
+                  initialGuest={room.guest}
+                  onSave={(guest) => { handleCheckIn(guest); }}
+                />
+              </div>
+            )}
+
+            {/* Occupied, no group, guest saved — saved info view OR edit form */}
+            {room.status === 'occupied' && !groupBooking && room.guest && (
+              <>
+                {showEditGuestForm ? (
+                  /* ── Edit form ── */
+                  <div className="rounded-2xl p-4" style={{ background: '#FFFDF9', border: '1px solid rgba(28,58,42,0.08)' }}>
+                    <div className="flex items-center justify-between mb-4">
+                      <p className="text-xs font-semibold uppercase tracking-wide" style={{ color: '#7A7A6E' }}>Edit Guest Details</p>
+                      <button
+                        onClick={() => setShowEditGuestForm(false)}
+                        className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-semibold"
+                        style={{ background: 'rgba(28,58,42,0.08)', color: '#7A7A6E' }}
+                      >
+                        <X size={12} /> Cancel
+                      </button>
+                    </div>
+                    <GuestForm
+                      initialGuest={room.guest}
+                      onSave={(guest) => {
+                        updateGuest(room.id, guest);
+                        toast.success('Guest details saved');
+                        setShowEditGuestForm(false);
+                      }}
+                    />
+                  </div>
+                ) : (
+                  /* ── Saved info card ── */
+                  <div className="rounded-2xl p-4 space-y-3" style={{ background: '#FFFDF9', border: '1px solid rgba(28,58,42,0.08)' }}>
+                    <div className="flex items-center justify-between">
+                      <p className="text-xs font-semibold uppercase tracking-wide" style={{ color: '#7A7A6E' }}>Guest Info</p>
+                      <button
+                        onClick={() => setShowEditGuestForm(true)}
+                        className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all active:scale-95"
+                        style={{ background: 'rgba(212,135,58,0.12)', color: '#A36520' }}
+                      >
+                        ✎ Edit
+                      </button>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3 text-sm">
+                      <div className="col-span-2">
+                        <p className="text-xs" style={{ color: '#7A7A6E' }}>Name</p>
+                        <p className="font-semibold mt-0.5" style={{ color: '#1A1A1A' }}>{room.guest.fullName}</p>
+                      </div>
+                      <div className="col-span-2">
+                        <p className="text-xs mb-0.5" style={{ color: '#7A7A6E' }}>Phone</p>
+                        <div className="flex items-center gap-2">
+                          <p className="font-semibold" style={{ color: '#1A1A1A' }}>{room.guest.phone || '—'}</p>
+                          {room.guest.phone && (
+                            <a
+                              href={`https://wa.me/91${room.guest.phone.replace(/\D/g, '')}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-semibold transition-all active:scale-90"
+                              style={{ background: 'rgba(37,211,102,0.12)', color: '#128C7E' }}
+                            >
+                              <MessageCircle size={12} />
+                              WhatsApp
+                            </a>
+                          )}
+                        </div>
+                      </div>
+                      <div>
+                        <p className="text-xs" style={{ color: '#7A7A6E' }}>Adults</p>
+                        <p className="font-semibold mt-0.5" style={{ color: '#1A1A1A' }}>{room.guest.adults}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs" style={{ color: '#7A7A6E' }}>Children</p>
+                        <p className="font-semibold mt-0.5" style={{ color: '#1A1A1A' }}>{room.guest.children}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs" style={{ color: '#7A7A6E' }}>ID Type</p>
+                        <p className="font-semibold mt-0.5" style={{ color: '#1A1A1A' }}>{room.guest.idType.replace('_', ' ')}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs" style={{ color: '#7A7A6E' }}>ID Number</p>
+                        <p className="font-semibold mt-0.5" style={{ color: '#1A1A1A' }}>{room.guest.idNumber}</p>
+                      </div>
+                      {room.guest.specialRequests && (
+                        <div className="col-span-2">
+                          <p className="text-xs" style={{ color: '#7A7A6E' }}>Notes</p>
+                          <p className="font-semibold mt-0.5" style={{ color: '#1A1A1A' }}>{room.guest.specialRequests}</p>
+                        </div>
+                      )}
+                      {room.guest.idDocumentBase64 && (
+                        <div className="col-span-2">
+                          <p className="text-xs mb-1.5" style={{ color: '#7A7A6E' }}>ID Document</p>
+                          {room.guest.idDocumentBase64.startsWith('data:image') ? (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img src={room.guest.idDocumentBase64} alt="ID Document" className="w-full max-h-40 object-cover rounded-xl" />
+                          ) : (
+                            <span className="text-sm" style={{ color: '#3E6B47' }}>📄 Document uploaded</span>
+                          )}
+                        </div>
                       )}
                     </div>
                   </div>
-                  <div><p className="text-xs" style={{ color: '#7A7A6E' }}>Guests</p><p className="font-medium" style={{ color: '#1A1A1A' }}>{room.guest.adults} adult{room.guest.adults !== 1 ? 's' : ''}{room.guest.children > 0 ? `, ${room.guest.children} child${room.guest.children !== 1 ? 'ren' : ''}` : ''}</p></div>
-                  <div><p className="text-xs" style={{ color: '#7A7A6E' }}>ID</p><p className="font-medium" style={{ color: '#1A1A1A' }}>{room.guest.idType.replace('_', ' ')} · {room.guest.idNumber}</p></div>
-                  {room.guest.specialRequests && (
-                    <div className="col-span-2"><p className="text-xs" style={{ color: '#7A7A6E' }}>Notes</p><p className="font-medium" style={{ color: '#1A1A1A' }}>{room.guest.specialRequests}</p></div>
-                  )}
-                  {room.guest.idDocumentBase64 && (
-                    <div className="col-span-2">
-                      <p className="text-xs mb-1" style={{ color: '#7A7A6E' }}>ID Document</p>
-                      {room.guest.idDocumentBase64.startsWith('data:image') ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img src={room.guest.idDocumentBase64} alt="ID Document" className="w-full max-h-40 object-cover rounded-xl" />
-                      ) : (
-                        <span className="text-sm" style={{ color: '#3E6B47' }}>📄 Document uploaded</span>
-                      )}
-                    </div>
-                  )}
-                </div>
-              </div>
+                )}
+              </>
             )}
           </div>
         )}
