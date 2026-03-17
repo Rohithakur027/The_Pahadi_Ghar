@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState } from 'react';
 import { useHomestay } from '@/context/HomestayContext';
 import {
   format, startOfMonth, endOfMonth, eachDayOfInterval,
@@ -8,7 +8,7 @@ import {
 } from 'date-fns';
 import { ChevronLeft, ChevronRight, Mountain } from 'lucide-react';
 import { Room, BlockedBooking } from '@/types';
-import BlockRoomSheet, { ROOM_COLORS } from '@/components/BlockRoomSheet';
+import BlockRoomSheet from '@/components/BlockRoomSheet';
 
 const DAYS_OF_WEEK = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
@@ -43,12 +43,6 @@ export default function CalendarPage() {
 
   const prevMonth = () => setCurrentDate(d => new Date(d.getFullYear(), d.getMonth() - 1, 1));
   const nextMonth = () => setCurrentDate(d => new Date(d.getFullYear(), d.getMonth() + 1, 1));
-
-  // Total counts for status legend
-  const activeBlockedCount = useMemo(
-    () => new Set(blockedBookings.filter(b => b.status === 'blocked').flatMap(b => b.roomIds)).size,
-    [blockedBookings]
-  );
 
   return (
     <div className="page-enter px-4 pt-6 pb-6 space-y-5">
@@ -112,14 +106,12 @@ export default function CalendarPage() {
             const isToday = isSameDay(day, today);
             const isSelected = !!selectedDate && isSameDay(day, selectedDate);
 
-            // Build dot list: occupied rooms + blocked room IDs
-            const occupiedDots = roomsOnDay.map(r => ({ roomId: r.id, type: 'occupied' as const }));
-            const blockedDots = blockedOnDay
-              .flatMap(b => b.roomIds.map(id => ({ roomId: id, type: 'blocked' as const })))
-              // Remove if already in occupied (shouldn't happen, but safety)
-              .filter(d => !occupiedDots.some(o => o.roomId === d.roomId));
-            const allDots = [...occupiedDots, ...blockedDots].slice(0, 4);
-            const hasAny = allDots.length > 0;
+            // Count distinct rooms booked on this day
+            const occupiedIds = new Set(roomsOnDay.map(r => r.id));
+            const blockedIds = new Set(blockedOnDay.flatMap(b => b.roomIds));
+            const totalRooms = new Set([...occupiedIds, ...blockedIds]);
+            const dotCount = Math.min(totalRooms.size, 4);
+            const hasAny = dotCount > 0;
 
             return (
               <button
@@ -149,88 +141,21 @@ export default function CalendarPage() {
                   {format(day, 'd')}
                 </span>
 
-                {/* Dots: occupied = filled, blocked = dashed outline */}
+                {/* Hollow dashed circles — one per booked room */}
                 {hasAny && (
-                  <div className="flex flex-wrap justify-center gap-0.5 max-w-[36px]">
-                    {allDots.map((dot, idx) => {
-                      const color = ROOM_COLORS[dot.roomId]?.dot || '#1C3A2A';
-                      return (
-                        <div
-                          key={`${dot.roomId}-${idx}`}
-                          className="w-2.5 h-2.5 rounded-full"
-                          style={
-                            dot.type === 'occupied'
-                              ? { background: color }
-                              : {
-                                  background: 'transparent',
-                                  border: `1.5px dashed ${color}`,
-                                  opacity: 0.85,
-                                }
-                          }
-                          title={ROOM_COLORS[dot.roomId]?.label}
-                        />
-                      );
-                    })}
+                  <div className="flex justify-center gap-0.5">
+                    {Array.from({ length: dotCount }).map((_, idx) => (
+                      <div
+                        key={idx}
+                        className="w-2 h-2 rounded-full flex-shrink-0"
+                        style={{ background: 'transparent', border: '1.5px dashed rgba(28,58,42,0.45)' }}
+                      />
+                    ))}
                   </div>
                 )}
               </button>
             );
           })}
-        </div>
-      </div>
-
-      {/* Status legend */}
-      <div
-        className="rounded-2xl p-4"
-        style={{ background: '#FFFDF9', border: '1px solid rgba(28,58,42,0.08)' }}
-      >
-        <p className="text-xs font-semibold uppercase tracking-wide mb-3" style={{ color: '#7A7A6E' }}>
-          Legend
-        </p>
-
-        {/* Room colors */}
-        <div className="grid grid-cols-2 gap-2 mb-3">
-          {Object.entries(ROOM_COLORS).map(([roomId, config]) => {
-            const room = rooms.find(r => r.id === roomId);
-            return (
-              <div key={roomId} className="flex items-center gap-2">
-                <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ background: config.dot }} />
-                <span className="text-xs" style={{ color: '#7A7A6E' }}>
-                  {config.emoji} {config.label}
-                  {room?.status === 'occupied' && (
-                    <span className="ml-1" style={{ color: config.dot }}>●</span>
-                  )}
-                </span>
-              </div>
-            );
-          })}
-        </div>
-
-        {/* Status types */}
-        <div
-          className="flex items-center flex-wrap gap-x-4 gap-y-2 pt-3"
-          style={{ borderTop: '1px solid rgba(28,58,42,0.06)' }}
-        >
-          <div className="flex items-center gap-1.5">
-            <div className="w-3 h-3 rounded-full" style={{ background: '#3E6B47' }} />
-            <span className="text-xs" style={{ color: '#7A7A6E' }}>Occupied</span>
-          </div>
-          <div className="flex items-center gap-1.5">
-            <div
-              className="w-3 h-3 rounded-full"
-              style={{ background: 'transparent', border: '1.5px dashed #D4873A' }}
-            />
-            <span className="text-xs" style={{ color: '#7A7A6E' }}>
-              Blocked {activeBlockedCount > 0 ? `(${activeBlockedCount})` : ''}
-            </span>
-          </div>
-          <div className="flex items-center gap-1.5">
-            <div
-              className="w-3 h-3 rounded-full"
-              style={{ background: 'transparent', border: '1.5px solid rgba(28,58,42,0.2)' }}
-            />
-            <span className="text-xs" style={{ color: '#7A7A6E' }}>Available</span>
-          </div>
         </div>
       </div>
 

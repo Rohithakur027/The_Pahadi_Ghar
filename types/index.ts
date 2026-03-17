@@ -53,6 +53,7 @@ export interface ActivityLog {
 }
 
 export type BookingStatus = 'blocked' | 'checked_in' | 'checked_out' | 'cancelled';
+export type MealPlan = 'room_only' | 'breakfast' | 'breakfast_dinner' | 'all_meals';
 
 export interface AadharEntry {
   id: string;
@@ -77,6 +78,7 @@ export interface GroupBooking {
   amountPaid: number;
   paymentStatus: PaymentStatus;
   specialRequests?: string;
+  mealPlan?: MealPlan;
   sourceBlockedBookingId?: string;
   status: 'active' | 'checked_out';
   createdAt: string;
@@ -99,6 +101,7 @@ export interface BlockedBooking {
   paymentMethod: PaymentMethod;
   transactionId?: string;
   specialRequests?: string;
+  mealPlan?: MealPlan;
   status: BookingStatus;
   createdAt: string;
 }

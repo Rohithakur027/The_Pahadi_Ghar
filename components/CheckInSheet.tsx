@@ -6,8 +6,15 @@ import { format, differenceInCalendarDays } from 'date-fns';
 import { X, ChevronLeft, ChevronRight, Camera, Plus, Trash2, Check } from 'lucide-react';
 import { useHomestay } from '@/context/HomestayContext';
 import { useRouter } from 'next/navigation';
-import { AadharEntry, OrderItem } from '@/types';
+import { AadharEntry, OrderItem, MealPlan } from '@/types';
 import toast from 'react-hot-toast';
+
+const MEAL_PLANS: { id: MealPlan; label: string; icon: string }[] = [
+  { id: 'room_only',        label: 'Room Only',          icon: '🛏️' },
+  { id: 'breakfast',        label: 'Breakfast',          icon: '☕' },
+  { id: 'breakfast_dinner', label: 'Breakfast + Dinner', icon: '🍽️' },
+  { id: 'all_meals',        label: 'All Meals',          icon: '🥘' },
+];
 
 const ROOMS = [
   { id: 'room-gushaini',    emoji: '🏡', label: 'Room (Gushaini)',         defaultRate: 2500 },
@@ -38,6 +45,8 @@ export default function CheckInSheet({ onClose }: { onClose: () => void }) {
   const [checkOutDate, setCheckOutDate] = useState<Date | null>(null);
   const [adults, setAdults] = useState(1);
   const [children, setChildren] = useState(0);
+
+  const [mealPlan, setMealPlan] = useState<MealPlan>('room_only');
 
   // Step 3 — documentation
   const [guestName, setGuestName] = useState('');
@@ -133,6 +142,7 @@ export default function CheckInSheet({ onClose }: { onClose: () => void }) {
       checkInDate: format(checkInDate, 'yyyy-MM-dd'),
       checkOutDate: format(checkOutDate, 'yyyy-MM-dd'),
       nights, specialRequests: specialRequests.trim() || undefined,
+      mealPlan,
     });
 
     items.forEach(it => addGroupItem(gbId, { name: it.name, quantity: it.qty, pricePerUnit: it.price }));
@@ -301,6 +311,28 @@ export default function CheckInSheet({ onClose }: { onClose: () => void }) {
                     <span className="flex-1 text-center text-sm font-bold" style={{ color: '#1A1A1A' }}>{children}</span>
                     <button onClick={() => setChildren(c => c + 1)} className="w-9 h-9 rounded-xl flex items-center justify-center text-lg font-bold" style={{ background: 'rgba(28,58,42,0.08)', color: '#1C3A2A' }}>+</button>
                   </div>
+                </div>
+              </div>
+
+              {/* Meal Plan */}
+              <div>
+                <label className="block text-xs font-semibold uppercase tracking-wide mb-2" style={{ color: '#7A7A6E' }}>Meal Plan</label>
+                <div className="grid grid-cols-2 gap-2">
+                  {MEAL_PLANS.map(mp => (
+                    <button
+                      key={mp.id}
+                      onClick={() => setMealPlan(mp.id)}
+                      className="flex items-center gap-2 px-3 py-2.5 rounded-xl text-left transition-all"
+                      style={{
+                        background: mealPlan === mp.id ? 'rgba(212,135,58,0.15)' : 'rgba(28,58,42,0.04)',
+                        border: `1.5px solid ${mealPlan === mp.id ? 'rgba(212,135,58,0.5)' : 'rgba(28,58,42,0.1)'}`,
+                        color: mealPlan === mp.id ? '#A36520' : '#7A7A6E',
+                      }}
+                    >
+                      <span>{mp.icon}</span>
+                      <span className="text-xs font-semibold">{mp.label}</span>
+                    </button>
+                  ))}
                 </div>
               </div>
             </div>
@@ -481,6 +513,9 @@ export default function CheckInSheet({ onClose }: { onClose: () => void }) {
                     {phone ? `+91 ${phone} · ` : ''}{adults} adult{adults !== 1 ? 's' : ''}
                     {children > 0 ? `, ${children} child${children !== 1 ? 'ren' : ''}` : ''}
                     {aadharCards.length > 0 ? ` · ${aadharCards.length} Aadhar` : ''}
+                  </p>
+                  <p className="text-xs mt-1 font-semibold" style={{ color: '#A36520' }}>
+                    {MEAL_PLANS.find(m => m.id === mealPlan)?.icon} {MEAL_PLANS.find(m => m.id === mealPlan)?.label}
                   </p>
                 </div>
 

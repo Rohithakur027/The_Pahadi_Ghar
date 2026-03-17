@@ -9,8 +9,15 @@ import {
   format, parseISO, startOfDay, isWithinInterval, differenceInCalendarDays,
 } from 'date-fns';
 import { X, ChevronLeft, ChevronRight, Phone, Lock } from 'lucide-react';
-import { BlockedBooking, PaymentMethod } from '@/types';
+import { BlockedBooking, PaymentMethod, MealPlan } from '@/types';
 import toast from 'react-hot-toast';
+
+const MEAL_PLANS: { id: MealPlan; label: string; icon: string }[] = [
+  { id: 'room_only',        label: 'Room Only',          icon: '🛏️' },
+  { id: 'breakfast',        label: 'Breakfast',          icon: '☕' },
+  { id: 'breakfast_dinner', label: 'Breakfast + Dinner', icon: '🍽️' },
+  { id: 'all_meals',        label: 'All Meals',          icon: '🥘' },
+];
 
 export const ROOM_COLORS: Record<string, { dot: string; bg: string; label: string; emoji: string }> = {
   'room-gushaini':    { dot: '#3E6B47', bg: 'rgba(62,107,71,0.15)',  label: 'Room (Gushaini)',       emoji: '🏡' },
@@ -39,6 +46,7 @@ interface BlockFormData {
   advancePaid: string;
   paymentMethod: PaymentMethod;
   transactionId: string;
+  mealPlan: MealPlan;
 }
 
 interface Props {
@@ -67,6 +75,7 @@ export default function BlockRoomSheet({ selectedDate, onClose }: Props) {
     advancePaid: '',
     paymentMethod: 'cash',
     transactionId: '',
+    mealPlan: 'room_only',
   });
 
   const [form, setForm] = useState<BlockFormData>(emptyForm);
@@ -162,6 +171,7 @@ export default function BlockRoomSheet({ selectedDate, onClose }: Props) {
       paymentMethod: form.paymentMethod,
       transactionId: form.transactionId.trim() || undefined,
       specialRequests: form.specialRequests.trim() || undefined,
+      mealPlan: form.mealPlan,
       status: 'blocked',
     });
     toast.success(`🔒 ${form.guestName} — ${form.selectedRoomIds.length} room${form.selectedRoomIds.length > 1 ? 's' : ''} blocked`);
@@ -637,6 +647,28 @@ export default function BlockRoomSheet({ selectedDate, onClose }: Props) {
                     </div>
                   </div>
 
+                  {/* Meal Plan */}
+                  <div>
+                    <label className="block text-xs font-semibold uppercase tracking-wide mb-2" style={{ color: '#7A7A6E' }}>Meal Plan</label>
+                    <div className="grid grid-cols-2 gap-2">
+                      {MEAL_PLANS.map(mp => (
+                        <button
+                          key={mp.id}
+                          onClick={() => setForm(f => ({ ...f, mealPlan: mp.id }))}
+                          className="flex items-center gap-2 px-3 py-2.5 rounded-xl text-sm font-semibold text-left transition-all"
+                          style={{
+                            background: form.mealPlan === mp.id ? 'rgba(212,135,58,0.15)' : 'rgba(28,58,42,0.04)',
+                            border: `1.5px solid ${form.mealPlan === mp.id ? 'rgba(212,135,58,0.5)' : 'rgba(28,58,42,0.1)'}`,
+                            color: form.mealPlan === mp.id ? '#A36520' : '#7A7A6E',
+                          }}
+                        >
+                          <span>{mp.icon}</span>
+                          <span className="text-xs">{mp.label}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
                   <div>
                     <label className="block text-xs font-semibold uppercase tracking-wide mb-1.5" style={{ color: '#7A7A6E' }}>
                       Special Requests (optional)
@@ -788,6 +820,14 @@ export default function BlockRoomSheet({ selectedDate, onClose }: Props) {
                         {form.checkOutDate && format(form.checkOutDate, 'd MMM yyyy')}
                       </p>
                       <p className="text-xs mt-0.5" style={{ color: '#7A7A6E' }}>{nights} night{nights !== 1 ? 's' : ''}</p>
+                    </div>
+
+                    <div style={{ borderTop: '1px solid rgba(28,58,42,0.08)' }} className="pt-3">
+                      <p className="text-[10px] font-bold uppercase tracking-widest mb-1" style={{ color: '#7A7A6E' }}>Meal Plan</p>
+                      <p className="text-sm font-bold" style={{ color: '#1A1A1A' }}>
+                        {MEAL_PLANS.find(m => m.id === form.mealPlan)?.icon}{' '}
+                        {MEAL_PLANS.find(m => m.id === form.mealPlan)?.label}
+                      </p>
                     </div>
 
                     <div style={{ borderTop: '1px solid rgba(28,58,42,0.08)' }} className="pt-3">
