@@ -31,7 +31,14 @@ function formatINR(n: number) {
 }
 
 type WizardStep = 1 | 2 | 3 | 4 | 'confirm';
-type SheetTab = 'view' | 'block';
+type SheetTab = 'view' | 'book' | 'block';
+
+interface MaintenanceBlockForm {
+  selectedRoomIds: string[];
+  checkInDate: Date | null;
+  checkOutDate: Date | null;
+  reason: string;
+}
 
 interface BlockFormData {
   selectedRoomIds: string[];
@@ -61,6 +68,13 @@ export default function BlockRoomSheet({ selectedDate, onClose }: Props) {
   const [activeTab, setActiveTab] = useState<SheetTab>('view');
   const [step, setStep] = useState<WizardStep>(1);
   const [confirmDialog, setConfirmDialog] = useState<{ type: 'checkin' | 'cancel'; bookingId: string } | null>(null);
+  const [showMaintenanceConfirm, setShowMaintenanceConfirm] = useState(false);
+  const [maintenanceForm, setMaintenanceForm] = useState<MaintenanceBlockForm>({
+    selectedRoomIds: [],
+    checkInDate: selectedDate,
+    checkOutDate: null,
+    reason: '',
+  });
 
   const emptyForm = (): BlockFormData => ({
     selectedRoomIds: [],
@@ -195,10 +209,47 @@ export default function BlockRoomSheet({ selectedDate, onClose }: Props) {
 
   const handleTabChange = (tab: SheetTab) => {
     setActiveTab(tab);
-    if (tab === 'block') {
+    if (tab === 'book') {
       setStep(1);
       setForm(emptyForm());
     }
+    if (tab === 'block') {
+      setMaintenanceForm({ selectedRoomIds: [], checkInDate: selectedDate, checkOutDate: null, reason: '' });
+    }
+  };
+
+  const maintenanceNights = maintenanceForm.checkInDate && maintenanceForm.checkOutDate
+    ? Math.max(0, differenceInCalendarDays(maintenanceForm.checkOutDate, maintenanceForm.checkInDate))
+    : 0;
+
+  const canSaveMaintenance = maintenanceForm.selectedRoomIds.length > 0
+    && !!maintenanceForm.checkInDate && !!maintenanceForm.checkOutDate
+    && maintenanceNights > 0 && maintenanceForm.reason.trim().length > 0;
+
+  const handleMaintenanceBlock = () => {
+    if (!canSaveMaintenance || !maintenanceForm.checkInDate || !maintenanceForm.checkOutDate) return;
+    addBlockedBooking({
+      roomIds: maintenanceForm.selectedRoomIds,
+      guestName: 'Maintenance Block',
+      phone: '',
+      adults: 0,
+      children: 0,
+      checkInDate: format(maintenanceForm.checkInDate, 'yyyy-MM-dd'),
+      checkOutDate: format(maintenanceForm.checkOutDate, 'yyyy-MM-dd'),
+      nights: maintenanceNights,
+      totalAmount: 0,
+      advancePaid: 0,
+      balanceDue: 0,
+      paymentMethod: 'cash',
+      specialRequests: maintenanceForm.reason.trim(),
+      mealPlan: 'room_only',
+      status: 'blocked',
+      blockType: 'maintenance',
+      maintenanceReason: maintenanceForm.reason.trim(),
+    });
+    toast.success(`🔧 Room${maintenanceForm.selectedRoomIds.length > 1 ? 's' : ''} blocked for maintenance`);
+    setShowMaintenanceConfirm(false);
+    onClose();
   };
 
   const stepNum = step === 'confirm' ? 4 : Number(step);
@@ -222,6 +273,7 @@ export default function BlockRoomSheet({ selectedDate, onClose }: Props) {
           maxHeight: '90vh',
           display: 'flex',
           flexDirection: 'column',
+          overflow: 'hidden',
           zIndex: 50,
           boxShadow: '0 -8px 40px rgba(28,58,42,0.18)',
         }}
@@ -250,17 +302,21 @@ export default function BlockRoomSheet({ selectedDate, onClose }: Props) {
 
         {/* Tabs */}
         <div className="flex gap-2 px-5 pt-3 pb-2 flex-shrink-0">
-          {(['view', 'block'] as SheetTab[]).map(tab => (
+          {([
+            { id: 'view', label: 'View' },
+            { id: 'book', label: '📋 Book' },
+            { id: 'block', label: '🔧 Block' },
+          ] as { id: SheetTab; label: string }[]).map(tab => (
             <button
-              key={tab}
-              onClick={() => handleTabChange(tab)}
+              key={tab.id}
+              onClick={() => handleTabChange(tab.id)}
               className="px-4 py-2 rounded-xl text-sm font-semibold transition-all"
               style={{
-                background: activeTab === tab ? '#1C3A2A' : 'rgba(28,58,42,0.07)',
-                color: activeTab === tab ? '#FFFDF9' : '#7A7A6E',
+                background: activeTab === tab.id ? '#1C3A2A' : 'rgba(28,58,42,0.07)',
+                color: activeTab === tab.id ? '#FFFDF9' : '#7A7A6E',
               }}
             >
-              {tab === 'view' ? 'View' : '🔒 Block Rooms'}
+              {tab.label}
             </button>
           ))}
         </div>
@@ -277,11 +333,11 @@ export default function BlockRoomSheet({ selectedDate, onClose }: Props) {
                   <p className="text-sm font-semibold" style={{ color: '#1A1A1A' }}>No bookings on this date</p>
                   <p className="text-xs mt-1 mb-5" style={{ color: '#7A7A6E' }}>All rooms available</p>
                   <button
-                    onClick={() => handleTabChange('block')}
+                    onClick={() => handleTabChange('book')}
                     className="px-6 py-2.5 rounded-xl text-sm font-bold text-white transition-all active:scale-95"
                     style={{ background: 'linear-gradient(135deg, #D4873A, #E8A55A)' }}
                   >
-                    + Block a Room
+                    + Book a Room
                   </button>
                 </div>
               )}
@@ -418,8 +474,8 @@ export default function BlockRoomSheet({ selectedDate, onClose }: Props) {
             </div>
           )}
 
-          {/* ─── BLOCK ROOMS TAB ─── */}
-          {activeTab === 'block' && (
+          {/* ─── BOOK ROOMS TAB ─── */}
+          {activeTab === 'book' && (
             <div>
               {/* Progress bar */}
               {step !== 'confirm' && (
@@ -906,8 +962,188 @@ export default function BlockRoomSheet({ selectedDate, onClose }: Props) {
               )}
             </div>
           )}
+
+          {/* ─── BLOCK (MAINTENANCE) TAB ─── */}
+          {activeTab === 'block' && (
+            <div className="space-y-4">
+              <div className="mb-2">
+                <p className="text-sm font-bold" style={{ fontFamily: 'var(--font-playfair)', color: '#1C3A2A' }}>
+                  Block for Maintenance
+                </p>
+                <p className="text-xs mt-0.5" style={{ color: '#7A7A6E' }}>
+                  Block rooms for repairs, cleaning, or other work
+                </p>
+              </div>
+
+              {/* Room selection */}
+              <div className="space-y-2">
+                <p className="text-xs font-semibold uppercase tracking-wide" style={{ color: '#7A7A6E' }}>
+                  Select Rooms *
+                </p>
+                {Object.entries(ROOM_COLORS).map(([roomId, config]) => {
+                  const isSelected = maintenanceForm.selectedRoomIds.includes(roomId);
+                  const isUnavailable = unavailableRoomIds.has(roomId);
+                  return (
+                    <button
+                      key={roomId}
+                      onClick={() => {
+                        if (isUnavailable) return;
+                        setMaintenanceForm(f => ({
+                          ...f,
+                          selectedRoomIds: f.selectedRoomIds.includes(roomId)
+                            ? f.selectedRoomIds.filter(id => id !== roomId)
+                            : [...f.selectedRoomIds, roomId],
+                        }));
+                      }}
+                      disabled={isUnavailable}
+                      className="w-full flex items-center gap-3 p-3.5 rounded-2xl text-left transition-all"
+                      style={{
+                        background: isSelected ? 'rgba(192,83,58,0.08)' : 'rgba(28,58,42,0.04)',
+                        border: isSelected ? '2px solid rgba(192,83,58,0.4)' : '2px solid rgba(28,58,42,0.1)',
+                        opacity: isUnavailable ? 0.45 : 1,
+                      }}
+                    >
+                      <span className="text-xl">{config.emoji}</span>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-semibold" style={{ color: isUnavailable ? '#7A7A6E' : '#1A1A1A' }}>
+                          {config.label}
+                        </p>
+                        <p className="text-xs mt-0.5" style={{ color: isUnavailable ? '#C0533A' : '#7A7A6E' }}>
+                          {isUnavailable ? 'Already booked / blocked' : 'Available'}
+                        </p>
+                      </div>
+                      <div
+                        className="w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0"
+                        style={{ background: isSelected ? '#C0533A' : 'rgba(28,58,42,0.1)' }}
+                      >
+                        {isSelected && (
+                          <svg width="10" height="10" viewBox="0 0 12 12" fill="none">
+                            <path d="M2 6L5 9L10 3" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+                          </svg>
+                        )}
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Dates */}
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-semibold uppercase tracking-wide mb-2" style={{ color: '#7A7A6E' }}>
+                    From *
+                  </label>
+                  <DatePicker
+                    selected={maintenanceForm.checkInDate}
+                    onChange={(date: Date | null) =>
+                      setMaintenanceForm(f => ({
+                        ...f,
+                        checkInDate: date,
+                        checkOutDate: f.checkOutDate && date && f.checkOutDate <= date ? null : f.checkOutDate,
+                      }))
+                    }
+                    dateFormat="d MMM yyyy"
+                    className="block-datepicker"
+                    placeholderText="Start date"
+                    popperPlacement="bottom-start"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold uppercase tracking-wide mb-2" style={{ color: '#7A7A6E' }}>
+                    To *
+                  </label>
+                  <DatePicker
+                    selected={maintenanceForm.checkOutDate}
+                    onChange={(date: Date | null) => setMaintenanceForm(f => ({ ...f, checkOutDate: date }))}
+                    dateFormat="d MMM yyyy"
+                    minDate={maintenanceForm.checkInDate ? new Date(maintenanceForm.checkInDate.getTime() + 86400000) : new Date()}
+                    className="block-datepicker"
+                    placeholderText="End date"
+                    disabled={!maintenanceForm.checkInDate}
+                    popperPlacement="bottom-end"
+                  />
+                </div>
+              </div>
+
+              {/* Reason */}
+              <div>
+                <label className="block text-xs font-semibold uppercase tracking-wide mb-1.5" style={{ color: '#7A7A6E' }}>
+                  Reason for blocking *
+                </label>
+                <textarea
+                  value={maintenanceForm.reason}
+                  onChange={e => setMaintenanceForm(f => ({ ...f, reason: e.target.value }))}
+                  placeholder="e.g. Painting work, plumbing repair, deep cleaning…"
+                  rows={3}
+                  className="w-full px-4 py-3 rounded-xl border text-sm focus:outline-none resize-none"
+                  style={{ background: '#FFFDF9', borderColor: 'rgba(28,58,42,0.2)', color: '#1A1A1A' }}
+                />
+              </div>
+
+              <button
+                onClick={() => setShowMaintenanceConfirm(true)}
+                disabled={!canSaveMaintenance}
+                className="w-full py-4 rounded-2xl text-sm font-bold transition-all active:scale-[0.98]"
+                style={{
+                  background: canSaveMaintenance ? 'linear-gradient(135deg, #C0533A, #D4663A)' : 'rgba(28,58,42,0.12)',
+                  color: canSaveMaintenance ? 'white' : '#7A7A6E',
+                }}
+              >
+                🔧 Block Rooms
+              </button>
+            </div>
+          )}
         </div>
       </div>
+
+      {/* Maintenance block confirmation */}
+      {showMaintenanceConfirm && (
+        <div
+          className="fixed inset-0 flex items-center justify-center px-6 fade-overlay"
+          style={{ background: 'rgba(0,0,0,0.6)', zIndex: 60 }}
+        >
+          <div className="w-full rounded-2xl p-6 space-y-4" style={{ maxWidth: '320px', background: '#FFFDF9' }}>
+            <div className="text-center">
+              <p className="text-3xl mb-2">🔧</p>
+              <p className="text-base font-bold" style={{ fontFamily: 'var(--font-playfair)', color: '#1C3A2A' }}>
+                Block Rooms?
+              </p>
+              <p className="text-sm mt-2" style={{ color: '#7A7A6E' }}>
+                Block{' '}
+                <strong style={{ color: '#1A1A1A' }}>
+                  {maintenanceForm.selectedRoomIds.map(id => ROOM_COLORS[id]?.emoji + ' ' + ROOM_COLORS[id]?.label).join(', ')}
+                </strong>{' '}
+                for <strong style={{ color: '#C0533A' }}>{maintenanceForm.reason}</strong>?
+              </p>
+              {maintenanceForm.checkInDate && maintenanceForm.checkOutDate && (
+                <p className="text-xs mt-1.5" style={{ color: '#7A7A6E' }}>
+                  {format(maintenanceForm.checkInDate, 'd MMM')} → {format(maintenanceForm.checkOutDate, 'd MMM')}
+                  {' · '}{maintenanceNights} night{maintenanceNights !== 1 ? 's' : ''}
+                </p>
+              )}
+            </div>
+            <p className="text-xs text-center px-2" style={{ color: '#7A7A6E' }}>
+              These rooms will be unavailable for guest bookings during this period.
+            </p>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setShowMaintenanceConfirm(false)}
+                className="flex-1 py-3 rounded-xl text-sm font-semibold"
+                style={{ background: 'rgba(28,58,42,0.08)', color: '#7A7A6E' }}
+              >
+                Go Back
+              </button>
+              <button
+                onClick={handleMaintenanceBlock}
+                className="flex-1 py-3 rounded-xl text-sm font-bold text-white"
+                style={{ background: 'linear-gradient(135deg, #C0533A, #D4663A)' }}
+              >
+                Confirm Block
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Confirm dialogs */}
       {confirmDialog && (

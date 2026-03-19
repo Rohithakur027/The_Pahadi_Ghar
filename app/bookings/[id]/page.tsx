@@ -436,6 +436,16 @@ export default function GroupBookingPage({ params }: { params: Promise<{ id: str
         {/* ── BILLING TAB ── */}
         {tab === 'billing' && (
           <div className="space-y-4 page-enter">
+            {/* View Bill Button */}
+            <button
+              onClick={() => router.push(`/bill/booking/${id}`)}
+              className="w-full flex items-center justify-center gap-2 py-3 rounded-2xl text-sm font-bold text-white transition-all active:scale-[0.98]"
+              style={{ background: 'linear-gradient(135deg, #D4873A, #E8A55A)', boxShadow: '0 3px 12px rgba(212,135,58,0.3)' }}
+            >
+              <Receipt size={16} />
+              View &amp; Download Bill
+            </button>
+
             {/* Status */}
             <div className="flex items-center gap-2 px-3 py-2 rounded-xl w-fit" style={{ background: statusConf.bg, border: `1px solid ${statusConf.border}` }}>
               <StatusIcon size={14} style={{ color: statusConf.color }} />

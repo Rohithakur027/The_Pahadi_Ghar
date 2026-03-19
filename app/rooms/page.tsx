@@ -27,7 +27,7 @@ export default function BookingPage() {
   const todayStr = format(now, 'yyyy-MM-dd');
 
   // Today's blocked check-ins
-  const todayBlocked = blockedBookings.filter(b => b.status === 'blocked' && b.checkInDate === todayStr);
+  const todayBlocked = blockedBookings.filter(b => b.status === 'blocked' && b.checkInDate === todayStr && b.blockType !== 'maintenance');
 
   // Active group bookings
   const activeGroups = groupBookings.filter(g => g.status === 'active');

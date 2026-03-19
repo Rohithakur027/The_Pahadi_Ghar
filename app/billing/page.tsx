@@ -279,7 +279,7 @@ export default function BillingPage() {
                         </p>
                       </div>
                       <button
-                        onClick={() => router.push(`/rooms/${room.id}?tab=billing`)}
+                        onClick={() => router.push(`/bill/room/${room.id}`)}
                         className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold flex-shrink-0 transition-all active:scale-95"
                         style={{ background: 'rgba(28,58,42,0.08)', color: '#1C3A2A' }}
                       >
@@ -334,14 +334,12 @@ export default function BillingPage() {
                         </p>
                       </div>
                       <button
-                        onClick={() => {
-                          toast('🧾 Bill download coming soon!', { icon: '📄' });
-                        }}
+                        onClick={() => router.push(`/bill/room/${room.id}`)}
                         className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold flex-shrink-0 transition-all active:scale-95"
                         style={{ background: 'linear-gradient(135deg, #D4873A, #E8A55A)', color: 'white' }}
                       >
                         <Download size={12} />
-                        Download Bill
+                        View Bill
                       </button>
                     </div>
                   );

@@ -3,6 +3,7 @@ import { Playfair_Display, DM_Sans } from 'next/font/google';
 import './globals.css';
 import { HomestayProvider } from '@/context/HomestayContext';
 import BottomNav from '@/components/BottomNav';
+import Sidebar from '@/components/Sidebar';
 import { Toaster } from 'react-hot-toast';
 
 const playfair = Playfair_Display({
@@ -25,12 +26,22 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" className={`${playfair.variable} ${dmSans.variable}`}>
-<body className="antialiased">
+      <body className="antialiased" style={{ background: '#F7F3EE' }}>
         <HomestayProvider>
-          <main className="min-h-screen pb-24 max-w-lg mx-auto">
-            {children}
+          {/* Desktop sidebar — hidden on mobile */}
+          <Sidebar />
+
+          {/* Main content — full width on mobile, offset by sidebar on desktop */}
+          <main className="min-h-screen pb-24 md:pb-0 md:pl-60">
+            {/* Inner wrapper: centered narrow on mobile, full-width on desktop */}
+            <div className="max-w-lg mx-auto md:max-w-none md:mx-0">
+              {children}
+            </div>
           </main>
+
+          {/* Mobile bottom nav — hidden on desktop */}
           <BottomNav />
+
           <Toaster
             position="top-center"
             gutter={8}

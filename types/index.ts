@@ -104,4 +104,6 @@ export interface BlockedBooking {
   mealPlan?: MealPlan;
   status: BookingStatus;
   createdAt: string;
+  blockType?: 'advance' | 'maintenance';
+  maintenanceReason?: string;
 }

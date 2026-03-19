@@ -612,9 +612,19 @@ export default function RoomDetailPage({ params }: { params: Promise<{ id: strin
                 <button onClick={() => router.push(`/bookings/${groupBooking.id}?tab=billing`)} className="px-4 py-2 rounded-xl text-sm font-semibold text-white" style={{ background: 'linear-gradient(135deg, #1C3A2A, #2A5A40)' }}>Open Group Booking →</button>
               </div>
             ) : (
-              <div className="rounded-2xl p-4" style={{ background: '#FFFDF9', border: '1px solid rgba(28,58,42,0.08)' }}>
-                <p className="text-xs font-semibold uppercase tracking-wide mb-4" style={{ color: '#7A7A6E' }}>Billing Summary</p>
-                <BillingSummary room={room} onRecordPayment={(amount) => recordPayment(room.id, amount)} />
+              <div className="space-y-3">
+                <button
+                  onClick={() => router.push(`/bill/room/${room.id}`)}
+                  className="w-full flex items-center justify-center gap-2 py-3 rounded-2xl text-sm font-bold text-white transition-all active:scale-[0.98]"
+                  style={{ background: 'linear-gradient(135deg, #D4873A, #E8A55A)', boxShadow: '0 3px 12px rgba(212,135,58,0.3)' }}
+                >
+                  <Receipt size={16} />
+                  View &amp; Download Bill
+                </button>
+                <div className="rounded-2xl p-4" style={{ background: '#FFFDF9', border: '1px solid rgba(28,58,42,0.08)' }}>
+                  <p className="text-xs font-semibold uppercase tracking-wide mb-4" style={{ color: '#7A7A6E' }}>Billing Summary</p>
+                  <BillingSummary room={room} onRecordPayment={(amount) => recordPayment(room.id, amount)} />
+                </div>
               </div>
             )}
           </div>
