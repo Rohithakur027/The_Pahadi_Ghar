@@ -1,14 +1,14 @@
 'use client';
 
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { useHomestay } from '@/context/HomestayContext';
 import {
   format, startOfMonth, endOfMonth, eachDayOfInterval,
-  getDay, isSameDay, parseISO, isWithinInterval, startOfDay,
+  getDay, isSameDay, isBefore, parseISO, isWithinInterval, startOfDay,
 } from 'date-fns';
 import { ChevronLeft, ChevronRight, Mountain } from 'lucide-react';
 import { Room, BlockedBooking } from '@/types';
-import BlockRoomSheet from '@/components/BlockRoomSheet';
 
 const DAYS_OF_WEEK = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
@@ -32,8 +32,8 @@ function getBlockedBookingsOnDate(blockedBookings: BlockedBooking[], date: Date)
 
 export default function CalendarPage() {
   const { rooms, blockedBookings } = useHomestay();
+  const router = useRouter();
   const [currentDate, setCurrentDate] = useState(new Date());
-  const [selectedDate, setSelectedDate] = useState<Date | null>(null);
 
   const monthStart = startOfMonth(currentDate);
   const monthEnd = endOfMonth(currentDate);
@@ -104,9 +104,8 @@ export default function CalendarPage() {
             const roomsOnDay = getRoomsOnDate(rooms, day);
             const blockedOnDay = getBlockedBookingsOnDate(blockedBookings, day);
             const isToday = isSameDay(day, today);
-            const isSelected = !!selectedDate && isSameDay(day, selectedDate);
+            const isPast = isBefore(startOfDay(day), startOfDay(today));
 
-            // Count distinct rooms booked on this day
             const occupiedIds = new Set(roomsOnDay.map(r => r.id));
             const blockedIds = new Set(blockedOnDay.flatMap(b => b.roomIds));
             const totalRooms = new Set([...occupiedIds, ...blockedIds]);
@@ -116,32 +115,28 @@ export default function CalendarPage() {
             return (
               <button
                 key={day.toISOString()}
-                onClick={() => setSelectedDate(isSelected ? null : day)}
-                className="flex flex-col items-center py-1.5 rounded-xl transition-all active:scale-90 min-h-[52px]"
+                onClick={() => !isPast && router.push(`/calendar/${format(day, 'yyyy-MM-dd')}`)}
+                disabled={isPast}
+                className="flex flex-col items-center py-1.5 rounded-xl transition-all min-h-[52px]"
                 style={{
-                  background: isSelected
-                    ? 'rgba(212,135,58,0.15)'
-                    : isToday
-                    ? 'rgba(28,58,42,0.07)'
-                    : 'transparent',
-                  border: isSelected
-                    ? '1px solid rgba(212,135,58,0.4)'
-                    : isToday
+                  background: isToday ? 'rgba(28,58,42,0.07)' : 'transparent',
+                  border: isToday
                     ? '1px solid rgba(28,58,42,0.15)'
                     : '1px solid transparent',
+                  opacity: isPast ? 0.3 : 1,
+                  cursor: isPast ? 'not-allowed' : 'pointer',
                 }}
               >
                 <span
                   className="text-[13px] font-medium leading-none mb-1.5"
                   style={{
-                    color: isToday ? '#D4873A' : '#1A1A1A',
+                    color: isPast ? '#9CA3AF' : isToday ? '#D4873A' : '#1A1A1A',
                     fontWeight: isToday ? '700' : '500',
                   }}
                 >
                   {format(day, 'd')}
                 </span>
 
-                {/* Hollow dashed circles — one per booked room */}
                 {hasAny && (
                   <div className="flex justify-center gap-0.5">
                     {Array.from({ length: dotCount }).map((_, idx) => (
@@ -159,13 +154,6 @@ export default function CalendarPage() {
         </div>
       </div>
 
-      {/* Bottom sheet */}
-      {selectedDate && (
-        <BlockRoomSheet
-          selectedDate={selectedDate}
-          onClose={() => setSelectedDate(null)}
-        />
-      )}
     </div>
   );
 }

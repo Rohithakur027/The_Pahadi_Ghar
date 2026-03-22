@@ -11,6 +11,7 @@ import {
 import { X, ChevronLeft, ChevronRight, Phone, Lock } from 'lucide-react';
 import { BlockedBooking, PaymentMethod, MealPlan } from '@/types';
 import toast from 'react-hot-toast';
+import BookingConfirmationModal, { ConfirmedBookingData } from './BookingConfirmationModal';
 
 const MEAL_PLANS: { id: MealPlan; label: string; icon: string }[] = [
   { id: 'room_only',        label: 'Room Only',          icon: '🛏️' },
@@ -59,15 +60,16 @@ interface BlockFormData {
 interface Props {
   selectedDate: Date;
   onClose: () => void;
+  activeTab: SheetTab;
+  onTabChange: (tab: SheetTab) => void;
 }
 
-export default function BlockRoomSheet({ selectedDate, onClose }: Props) {
+export default function BlockRoomSheet({ selectedDate, onClose, activeTab, onTabChange }: Props) {
   const { rooms, blockedBookings, addBlockedBooking, cancelBlockedBooking, checkInFromBlock } = useHomestay();
   const router = useRouter();
-
-  const [activeTab, setActiveTab] = useState<SheetTab>('view');
   const [step, setStep] = useState<WizardStep>(1);
   const [confirmDialog, setConfirmDialog] = useState<{ type: 'checkin' | 'cancel'; bookingId: string } | null>(null);
+  const [confirmedBooking, setConfirmedBooking] = useState<ConfirmedBookingData | null>(null);
   const [showMaintenanceConfirm, setShowMaintenanceConfirm] = useState(false);
   const [maintenanceForm, setMaintenanceForm] = useState<MaintenanceBlockForm>({
     selectedRoomIds: [],
@@ -170,26 +172,53 @@ export default function BlockRoomSheet({ selectedDate, onClose }: Props) {
 
   const handleSave = () => {
     if (!canConfirm || !form.checkInDate || !form.checkOutDate) return;
+
+    const checkIn  = format(form.checkInDate,  'yyyy-MM-dd');
+    const checkOut = format(form.checkOutDate, 'yyyy-MM-dd');
+    const balance  = Math.max(0, balanceDue);
+
     addBlockedBooking({
       roomIds: form.selectedRoomIds,
       guestName: form.guestName.trim(),
       phone: form.phone.trim(),
       adults: form.adults,
       children: form.children,
-      checkInDate: format(form.checkInDate, 'yyyy-MM-dd'),
-      checkOutDate: format(form.checkOutDate, 'yyyy-MM-dd'),
+      checkInDate: checkIn,
+      checkOutDate: checkOut,
       nights,
       totalAmount: totalAmt,
       advancePaid: advanceAmt,
-      balanceDue: Math.max(0, balanceDue),
+      balanceDue: balance,
       paymentMethod: form.paymentMethod,
       transactionId: form.transactionId.trim() || undefined,
       specialRequests: form.specialRequests.trim() || undefined,
       mealPlan: form.mealPlan,
       status: 'blocked',
+      blockType: 'advance',
     });
+
     toast.success(`🔒 ${form.guestName} — ${form.selectedRoomIds.length} room${form.selectedRoomIds.length > 1 ? 's' : ''} blocked`);
-    onClose();
+
+    // Show booking confirmation instead of closing immediately
+    const ref = crypto.randomUUID().slice(-8).toUpperCase();
+    setConfirmedBooking({
+      bookingRef: ref,
+      guestName: form.guestName.trim(),
+      phone: form.phone.trim(),
+      adults: form.adults,
+      children: form.children,
+      roomIds: form.selectedRoomIds,
+      checkInDate: checkIn,
+      checkOutDate: checkOut,
+      nights,
+      totalAmount: totalAmt,
+      advancePaid: advanceAmt,
+      balanceDue: balance,
+      mealPlan: form.mealPlan,
+      specialRequests: form.specialRequests.trim() || undefined,
+      paymentMethod: form.paymentMethod,
+      transactionId: form.transactionId.trim() || undefined,
+    });
   };
 
   const handleCheckIn = (bookingId: string) => {
@@ -208,7 +237,7 @@ export default function BlockRoomSheet({ selectedDate, onClose }: Props) {
   };
 
   const handleTabChange = (tab: SheetTab) => {
-    setActiveTab(tab);
+    onTabChange(tab);
     if (tab === 'book') {
       setStep(1);
       setForm(emptyForm());
@@ -256,73 +285,8 @@ export default function BlockRoomSheet({ selectedDate, onClose }: Props) {
 
   return (
     <>
-      {/* Backdrop */}
-      <div
-        className="fixed inset-0 fade-overlay"
-        style={{ background: 'rgba(0,0,0,0.45)', zIndex: 40 }}
-        onClick={onClose}
-      />
-
-      {/* Sheet */}
-      <div
-        className="fixed inset-x-0 bottom-0 slide-up mx-auto"
-        style={{
-          maxWidth: '512px',
-          borderRadius: '24px 24px 0 0',
-          background: '#FFFDF9',
-          maxHeight: '90vh',
-          display: 'flex',
-          flexDirection: 'column',
-          overflow: 'hidden',
-          zIndex: 50,
-          boxShadow: '0 -8px 40px rgba(28,58,42,0.18)',
-        }}
-      >
-        {/* Drag handle */}
-        <div className="flex justify-center pt-3 pb-1 flex-shrink-0">
-          <div className="w-10 h-1 rounded-full" style={{ background: 'rgba(28,58,42,0.2)' }} />
-        </div>
-
-        {/* Header */}
-        <div
-          className="flex items-center justify-between px-5 py-3 flex-shrink-0"
-          style={{ borderBottom: '1px solid rgba(28,58,42,0.08)' }}
-        >
-          <p className="text-base font-bold" style={{ fontFamily: 'var(--font-playfair)', color: '#1C3A2A' }}>
-            {format(selectedDate, 'EEEE, d MMMM')}
-          </p>
-          <button
-            onClick={onClose}
-            className="p-1.5 rounded-lg transition-all active:scale-90"
-            style={{ background: 'rgba(28,58,42,0.06)' }}
-          >
-            <X size={14} style={{ color: '#1C3A2A' }} />
-          </button>
-        </div>
-
-        {/* Tabs */}
-        <div className="flex gap-2 px-5 pt-3 pb-2 flex-shrink-0">
-          {([
-            { id: 'view', label: 'View' },
-            { id: 'book', label: '📋 Book' },
-            { id: 'block', label: '🔧 Block' },
-          ] as { id: SheetTab; label: string }[]).map(tab => (
-            <button
-              key={tab.id}
-              onClick={() => handleTabChange(tab.id)}
-              className="px-4 py-2 rounded-xl text-sm font-semibold transition-all"
-              style={{
-                background: activeTab === tab.id ? '#1C3A2A' : 'rgba(28,58,42,0.07)',
-                color: activeTab === tab.id ? '#FFFDF9' : '#7A7A6E',
-              }}
-            >
-              {tab.label}
-            </button>
-          ))}
-        </div>
-
-        {/* Scrollable content */}
-        <div className="overflow-y-auto flex-1 px-5 pb-6 pt-2">
+      {/* Content rendered inline — layout handled by the parent page */}
+      <div className="px-4 pb-10 pt-2">
 
           {/* ─── VIEW TAB ─── */}
           {activeTab === 'view' && (
@@ -407,15 +371,20 @@ export default function BlockRoomSheet({ selectedDate, onClose }: Props) {
                         </span>
                       </div>
 
-                      {/* Phone */}
-                      <a
-                        href={`tel:+91${booking.phone}`}
-                        className="inline-flex items-center gap-1.5"
-                        onClick={e => e.stopPropagation()}
-                      >
-                        <Phone size={12} style={{ color: '#D4873A' }} />
-                        <span className="text-xs font-semibold" style={{ color: '#D4873A' }}>+91 {booking.phone}</span>
-                      </a>
+                      {/* Phone + WhatsApp */}
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-semibold" style={{ color: '#1C3A2A' }}>+91 {booking.phone}</span>
+                        <a
+                          href={`https://wa.me/91${booking.phone.replace(/\D/g, '')}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          onClick={e => e.stopPropagation()}
+                          className="text-xs font-bold"
+                          style={{ color: '#25D366' }}
+                        >
+                          WhatsApp
+                        </a>
+                      </div>
 
                       {/* Dates row */}
                       <div className="flex items-center gap-2">
@@ -1093,7 +1062,6 @@ export default function BlockRoomSheet({ selectedDate, onClose }: Props) {
               </button>
             </div>
           )}
-        </div>
       </div>
 
       {/* Maintenance block confirmation */}
@@ -1215,6 +1183,17 @@ export default function BlockRoomSheet({ selectedDate, onClose }: Props) {
             )}
           </div>
         </div>
+      )}
+
+      {/* ── Booking Confirmation Modal ── */}
+      {confirmedBooking && (
+        <BookingConfirmationModal
+          data={confirmedBooking}
+          onClose={() => {
+            setConfirmedBooking(null);
+            onClose();
+          }}
+        />
       )}
     </>
   );

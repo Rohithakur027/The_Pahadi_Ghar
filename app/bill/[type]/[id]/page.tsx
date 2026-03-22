@@ -4,7 +4,7 @@ import { use, useRef, useState } from 'react';
 import { useHomestay, calculateTotal, calculateGroupTotal } from '@/context/HomestayContext';
 import { useRouter } from 'next/navigation';
 import { format, parseISO } from 'date-fns';
-import { ArrowLeft, Pencil, Download, Loader2 } from 'lucide-react';
+import { ArrowLeft, Pencil, Download, Loader2, MessageCircle } from 'lucide-react';
 
 const ROOM_META: Record<string, { emoji: string; label: string }> = {
   'room-gushaini':    { emoji: '🏡', label: 'Room (Gushaini)' },
@@ -47,6 +47,7 @@ export default function BillPage({ params }: { params: Promise<{ type: string; i
   const { rooms, groupBookings } = useHomestay();
   const billRef = useRef<HTMLDivElement>(null);
   const [downloading, setDownloading] = useState(false);
+  const [sendingWa, setSendingWa] = useState(false);
 
   const room = type === 'room' ? rooms.find(r => r.id === id) : null;
   const booking = type === 'booking' ? groupBookings.find(b => b.id === id) : null;
@@ -95,6 +96,21 @@ export default function BillPage({ params }: { params: Promise<{ type: string; i
   const bookingId = id.slice(-8).toUpperCase();
 
   const editHref = type === 'room' ? `/rooms/${id}?tab=items` : `/bookings/${id}?tab=food`;
+
+  const handleWhatsApp = async () => {
+    setSendingWa(true);
+    // Download the bill PDF first so guest gets the file
+    await handleDownload();
+    // Build WhatsApp URL with simple message
+    const phone = guestPhone.replace(/\D/g, '');
+    const normalizedPhone = phone.startsWith('91') ? phone : `91${phone}`;
+    const text =
+      `Dear ${guestName},\n\n` +
+      `Your bill from The Pahadi Ghar, Tirthan Valley is ready.\n\n` +
+      `Please check your bill receipt.`;
+    window.open(`https://wa.me/${normalizedPhone}?text=${encodeURIComponent(text)}`, '_blank');
+    setSendingWa(false);
+  };
 
   const handleDownload = async () => {
     if (!billRef.current) return;
@@ -164,22 +180,38 @@ export default function BillPage({ params }: { params: Promise<{ type: string; i
         </p>
 
         <div className="flex items-center gap-2">
+          {/* Edit */}
           <button
             onClick={() => router.push(editHref)}
-            className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold transition-all active:scale-95"
-            style={{ background: 'rgba(28,58,42,0.08)', color: '#1C3A2A' }}
+            title="Edit"
+            className="p-2.5 rounded-xl transition-all active:scale-90"
+            style={{ background: 'rgba(28,58,42,0.08)' }}
           >
-            <Pencil size={13} />
-            Edit
+            <Pencil size={17} style={{ color: '#1C3A2A' }} />
           </button>
+          {/* Download */}
           <button
             onClick={handleDownload}
             disabled={downloading}
-            className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold text-white transition-all active:scale-95"
+            title="Download PDF"
+            className="p-2.5 rounded-xl transition-all active:scale-90"
             style={{ background: 'linear-gradient(135deg, #D4873A, #E8A55A)' }}
           >
-            {downloading ? <Loader2 size={13} className="animate-spin" /> : <Download size={13} />}
-            {downloading ? 'Saving…' : 'Download'}
+            {downloading
+              ? <Loader2 size={17} className="animate-spin text-white" />
+              : <Download size={17} className="text-white" />}
+          </button>
+          {/* WhatsApp */}
+          <button
+            onClick={handleWhatsApp}
+            disabled={sendingWa}
+            title="Send on WhatsApp"
+            className="p-2.5 rounded-xl transition-all active:scale-90"
+            style={{ background: 'linear-gradient(135deg, #25D366, #128C7E)' }}
+          >
+            {sendingWa
+              ? <Loader2 size={17} className="animate-spin text-white" />
+              : <MessageCircle size={17} className="text-white" />}
           </button>
         </div>
       </div>

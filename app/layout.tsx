@@ -4,6 +4,7 @@ import './globals.css';
 import { HomestayProvider } from '@/context/HomestayContext';
 import BottomNav from '@/components/BottomNav';
 import Sidebar from '@/components/Sidebar';
+import MobileTopBar from '@/components/MobileTopBar';
 import { Toaster } from 'react-hot-toast';
 
 const playfair = Playfair_Display({
@@ -21,19 +22,29 @@ const dmSans = DM_Sans({
 export const metadata: Metadata = {
   title: 'The Pahadi Ghar — Tirthan Valley',
   description: 'Homestay management for Tirthan Valley, Himachal Pradesh',
+  icons: {
+    icon: [],
+    shortcut: [],
+    apple: [],
+  },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" className={`${playfair.variable} ${dmSans.variable}`}>
+      <head>
+        <link rel="icon" href="data:," />
+      </head>
       <body className="antialiased" style={{ background: '#F7F3EE' }}>
         <HomestayProvider>
-          {/* Desktop sidebar — hidden on mobile */}
+          {/* Mobile top bar with hamburger — hidden on desktop */}
+          <MobileTopBar />
+
+          {/* Sidebar — drawer on mobile, fixed panel on desktop */}
           <Sidebar />
 
-          {/* Main content — full width on mobile, offset by sidebar on desktop */}
-          <main className="min-h-screen pb-24 md:pb-0 md:pl-60">
-            {/* Inner wrapper: centered narrow on mobile, full-width on desktop */}
+          {/* Main content */}
+          <main className="min-h-screen pt-[52px] md:pt-0 pb-24 md:pb-0 md:pl-60">
             <div className="max-w-lg mx-auto md:max-w-none md:mx-0">
               {children}
             </div>
