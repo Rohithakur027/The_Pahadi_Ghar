@@ -164,10 +164,7 @@ export default function BookingConfirmationModal({ data, onClose }: Props) {
     const margin = 10;
     const imgW = A4_W - margin * 2;
     const imgH = (canvas.height / canvas.width) * imgW;
-    const maxH = 277; // A4 height minus margins
-    const finalW = imgH > maxH ? (maxH / imgH) * imgW : imgW;
-    const finalH = Math.min(imgH, maxH);
-    pdf.addImage(imgData, 'JPEG', margin, margin, finalW, finalH);
+    pdf.addImage(imgData, 'JPEG', margin, margin, imgW, imgH);
     return pdf.output('blob');
   };
 

@@ -748,8 +748,15 @@ export default function BlockRoomSheet({ selectedDate, onClose, activeTab, onTab
                         type="number"
                         inputMode="numeric"
                         value={form.advancePaid}
-                        onChange={e => setForm(f => ({ ...f, advancePaid: e.target.value }))}
+                        onChange={e => {
+                          const val = e.target.value;
+                          const total = parseFloat(form.totalAmount) || 0;
+                          const advance = parseFloat(val) || 0;
+                          if (total > 0 && advance > total) return;
+                          setForm(f => ({ ...f, advancePaid: val }));
+                        }}
                         placeholder="0"
+                        max={parseFloat(form.totalAmount) || undefined}
                         className="w-full pl-8 pr-4 py-3 rounded-xl border text-sm focus:outline-none"
                         style={{ background: '#FFFDF9', borderColor: 'rgba(28,58,42,0.2)', color: '#1A1A1A' }}
                       />
