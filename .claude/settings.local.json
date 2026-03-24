@@ -1,7 +1,10 @@
 {
   "permissions": {
     "allow": [
-      "Bash(xargs grep:*)"
+      "Bash(xargs grep:*)",
+      "Bash(grep -r extra D:01exploretirthanvalleyThePahadiGharmy-appapp D:01exploretirthanvalleyThePahadiGharmy-appcomponents --include=*.tsx --include=*.jsx)",
+      "Bash(grep -r \"ExtraService\\\\|extra.*service\\\\|Service\" D:01exploretirthanvalleyThePahadiGharmy-appcomponents --include=*.tsx --include=*.jsx)",
+      "Bash(npx tsc:*)"
     ]
   }
 }

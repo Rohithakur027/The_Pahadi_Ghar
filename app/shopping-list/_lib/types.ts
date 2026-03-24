@@ -28,16 +28,19 @@ export interface ShoppingItem {
   listId: string;
   createdAt: string;
   addedInReview?: boolean;
+  addToFuture?: boolean;
 }
 
 export interface ShoppingList {
   id: string;
   title: string;
-  phase: 1 | 2 | 3 | 4;
-  status: 'open' | 'under_review' | 'approved' | 'sent';
+  listCategory?: ShoppingCategory;
+  shopkeeperName?: string;
+  shopkeeperPhone?: string;
+  phase: 1 | 2 | 3;
+  status: 'open' | 'under_review' | 'sent';
   createdAt: string;
   reviewedAt?: string;
-  approvedAt?: string;
   sentAt?: string;
 }
 
@@ -56,9 +59,23 @@ const ITEMS_KEY = 'pahadi_shopping_items';
 const SK_KEY    = 'pahadi_shopkeepers';
 const AB_KEY    = 'pahadi_shopping_addedby';
 
-export const loadLists       = (): ShoppingList[] => { try { return JSON.parse(localStorage.getItem(LISTS_KEY) || '[]'); } catch { return []; } };
+const VALID_STATUSES = new Set(['open', 'under_review', 'sent']);
+const VALID_PHASES   = new Set([1, 2, 3]);
+
+export const loadLists = (): ShoppingList[] => {
+  try {
+    const raw: any[] = JSON.parse(localStorage.getItem(LISTS_KEY) || '[]');
+    return raw.map(l => ({
+      ...l,
+      // Migrate old 'approved' status or any unknown status → 'sent' (archived)
+      status: VALID_STATUSES.has(l.status) ? l.status : 'sent',
+      // Migrate phase 4 (old final phase) → 3; any other unknown phase → 1
+      phase: VALID_PHASES.has(l.phase) ? l.phase : (l.phase === 4 ? 3 : 1),
+    }));
+  } catch { return []; }
+};
 export const saveLists       = (d: ShoppingList[]) => localStorage.setItem(LISTS_KEY, JSON.stringify(d));
-export const loadItems       = (): ShoppingItem[]  => { try { return JSON.parse(localStorage.getItem(ITEMS_KEY) || '[]'); } catch { return []; } };
+export const loadItems = (): ShoppingItem[] => { try { return JSON.parse(localStorage.getItem(ITEMS_KEY) || '[]'); } catch { return []; } };
 export const saveItems       = (d: ShoppingItem[]) => localStorage.setItem(ITEMS_KEY, JSON.stringify(d));
 export const loadShopkeepers = (): Shopkeeper[]    => { try { return JSON.parse(localStorage.getItem(SK_KEY)    || '[]'); } catch { return []; } };
 export const saveShopkeepers = (d: Shopkeeper[])   => localStorage.setItem(SK_KEY, JSON.stringify(d));

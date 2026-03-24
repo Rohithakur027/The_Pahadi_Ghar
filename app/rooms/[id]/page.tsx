@@ -1,17 +1,17 @@
 'use client';
 
-import { use, useState } from 'react';
+import { use, useState, useMemo } from 'react';
 import { useHomestay, calculateTotal } from '@/context/HomestayContext';
 import { useRouter } from 'next/navigation';
 import GuestForm from '@/components/GuestForm';
 import ItemsList from '@/components/ItemsList';
 import BillingSummary from '@/components/BillingSummary';
-import { Guest, OrderItem } from '@/types';
-import { format } from 'date-fns';
+import { Guest, OrderItem, NoteCategory } from '@/types';
+import { format, parseISO } from 'date-fns';
 import {
-  ArrowLeft, BedDouble, UserCheck, ShoppingBag, Receipt,
-  ToggleLeft, ToggleRight, Calendar, Moon, AlertCircle,
-  Users, ExternalLink, Plus, X,
+  ArrowLeft, BedDouble, ShoppingBag, Receipt,
+  ToggleLeft, ToggleRight, Moon, AlertCircle,
+  Plus, X, StickyNote, Trash2, Users, ExternalLink,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import DatePicker from 'react-datepicker';
@@ -24,13 +24,13 @@ function WhatsAppIcon({ size }: { size: number }) {
   );
 }
 
-type Tab = 'info' | 'guest' | 'items' | 'billing';
+type Tab = 'overview' | 'food' | 'notes' | 'billing';
 
 const TABS: { id: Tab; label: string; icon: React.ReactNode }[] = [
-  { id: 'info',    label: 'Room',    icon: <BedDouble size={15} /> },
-  { id: 'guest',   label: 'Guest',   icon: <UserCheck size={15} /> },
-  { id: 'items',   label: 'Items',   icon: <ShoppingBag size={15} /> },
-  { id: 'billing', label: 'Billing', icon: <Receipt size={15} /> },
+  { id: 'overview', label: 'Overview', icon: <BedDouble size={15} /> },
+  { id: 'food',     label: 'Food',     icon: <ShoppingBag size={15} /> },
+  { id: 'notes',    label: 'Notes',    icon: <StickyNote size={15} /> },
+  { id: 'billing',  label: 'Billing',  icon: <Receipt size={15} /> },
 ];
 
 const ROOM_META: Record<string, { emoji: string; label: string }> = {
@@ -47,10 +47,13 @@ function formatINR(n: number) {
 export default function RoomDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const router = useRouter();
-  const { rooms, groupBookings, updateRoom, addItem, removeItem, updateGuest, recordPayment, checkIn, checkOut, createGroupBooking } = useHomestay();
+  const { rooms, groupBookings, updateRoom, addItem, removeItem, addNote, removeNote, updateGuest, recordPayment, checkIn, checkOut, createGroupBooking } = useHomestay();
 
   const room = rooms.find(r => r.id === id);
-  const [activeTab, setActiveTab] = useState<Tab>('info');
+  const [activeTab, setActiveTab] = useState<Tab>('overview');
+  // Notes tab state
+  const [noteText, setNoteText] = useState('');
+  const [noteCategory, setNoteCategory] = useState<NoteCategory>('general');
   const [showCheckInForm, setShowCheckInForm] = useState(false);
 
   // Check-in form state
@@ -60,6 +63,9 @@ export default function RoomDetailPage({ params }: { params: Promise<{ id: strin
   const [ciErrors, setCiErrors] = useState<{ checkOut?: string; rate?: string }>({});
 
   const [showEditGuestForm, setShowEditGuestForm] = useState(false);
+  const [showRoomEdit, setShowRoomEdit] = useState(false);
+  const [showCheckoutConfirm, setShowCheckoutConfirm] = useState(false);
+  const [editCoDateObj, setEditCoDateObj] = useState<Date | null>(null);
 
   // Multi-room state
   const [multiRoom, setMultiRoom] = useState(false);
@@ -140,12 +146,11 @@ export default function RoomDetailPage({ params }: { params: Promise<{ id: strin
       checkIn(room.id, guest, ciStr, coStr, parseFloat(nightlyRate));
       setShowCheckInForm(false);
       toast.success(`${guest.fullName} checked in! 🌲`);
-      setActiveTab('info');
+      setActiveTab('overview');
     }
   };
 
   const handleCheckOut = () => {
-    if (!confirm(`Check out ${room.guest?.fullName}?`)) return;
     checkOut(room.id);
     toast.success('Checked out successfully');
     router.push('/rooms');
@@ -234,8 +239,8 @@ export default function RoomDetailPage({ params }: { params: Promise<{ id: strin
       {/* Tab Content */}
       <div className="px-4 pt-5 pb-6">
 
-        {/* ─── TAB: ROOM INFO ─── */}
-        {activeTab === 'info' && (
+        {/* ─── TAB: OVERVIEW (Room + Guest merged) ─── */}
+        {activeTab === 'overview' && (
           <div className="space-y-5 page-enter">
             <div className="rounded-2xl p-4" style={{ background: '#FFFDF9', border: '1px solid rgba(28,58,42,0.08)' }}>
               <p className="text-xs font-semibold uppercase tracking-wide mb-3" style={{ color: '#7A7A6E' }}>Room Status</p>
@@ -383,16 +388,11 @@ export default function RoomDetailPage({ params }: { params: Promise<{ id: strin
                       )}
 
                       <p className="text-xs font-medium" style={{ color: '#7A7A6E' }}>
-                        Fill in guest details below →
+                        Fill in guest details below ↓
                       </p>
-                      <div className="flex gap-2">
-                        <button onClick={() => { setShowCheckInForm(false); setMultiRoom(false); setExtraRoomIds([]); }} className="flex-1 py-3 rounded-xl text-sm font-medium" style={{ background: 'rgba(28,58,42,0.06)', color: '#7A7A6E' }}>
-                          Cancel
-                        </button>
-                        <button onClick={() => setActiveTab('guest')} className="flex-1 py-3 rounded-xl text-sm font-semibold text-white" style={{ background: 'linear-gradient(135deg, #D4873A, #E8A55A)' }}>
-                          Add Guest Info →
-                        </button>
-                      </div>
+                      <button onClick={() => { setShowCheckInForm(false); setMultiRoom(false); setExtraRoomIds([]); }} className="w-full py-3 rounded-xl text-sm font-medium" style={{ background: 'rgba(28,58,42,0.06)', color: '#7A7A6E' }}>
+                        Cancel
+                      </button>
                     </div>
                   )}
                 </div>
@@ -403,71 +403,142 @@ export default function RoomDetailPage({ params }: { params: Promise<{ id: strin
                       <p className="text-xs font-medium" style={{ color: '#7A7A6E' }}>This room is part of a group booking.</p>
                       <p className="text-xs mt-0.5" style={{ color: '#7A7A6E' }}>Manage billing, food and IDs from the booking page.</p>
                     </div>
-                  ) : (
-                    <>
+                  ) : showRoomEdit ? (
+                    /* ── Edit mode: change checkout date ── */
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between">
+                        <p className="text-sm font-semibold" style={{ color: '#1C3A2A' }}>Edit Booking</p>
+                        <button
+                          onClick={() => { setShowRoomEdit(false); setEditCoDateObj(null); }}
+                          className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-semibold"
+                          style={{ background: 'rgba(28,58,42,0.08)', color: '#7A7A6E' }}
+                        >
+                          <X size={12} /> Cancel
+                        </button>
+                      </div>
                       <div className="grid grid-cols-2 gap-3">
-                        <div className="rounded-xl p-3" style={{ background: 'rgba(28,58,42,0.05)' }}>
-                          <p className="text-xs" style={{ color: '#7A7A6E' }}>Check-in</p>
-                          <p className="text-sm font-semibold mt-0.5" style={{ color: '#1C3A2A' }}>{room.checkInDate ? format(new Date(room.checkInDate), 'd MMM yyyy') : '—'}</p>
+                        <div className="rounded-xl p-3" style={{ background: 'rgba(28,58,42,0.04)', border: '1px solid rgba(28,58,42,0.1)' }}>
+                          <p className="text-xs font-medium mb-1" style={{ color: '#7A7A6E' }}>Check-in (fixed)</p>
+                          <p className="text-sm font-bold" style={{ color: '#1C3A2A' }}>{room.checkInDate ? format(new Date(room.checkInDate), 'd MMM yyyy') : '—'}</p>
                         </div>
-                        <div className="rounded-xl p-3" style={{ background: 'rgba(28,58,42,0.05)' }}>
-                          <p className="text-xs" style={{ color: '#7A7A6E' }}>Check-out</p>
-                          <p className="text-sm font-semibold mt-0.5" style={{ color: '#1C3A2A' }}>{room.checkOutDate ? format(new Date(room.checkOutDate), 'd MMM yyyy') : '—'}</p>
+                        <div>
+                          <label className="text-xs font-medium block mb-1.5" style={{ color: '#7A7A6E' }}>New Check-out</label>
+                          <DatePicker
+                            selected={editCoDateObj ?? (room.checkOutDate ? new Date(room.checkOutDate) : null)}
+                            onChange={(d: Date | null) => setEditCoDateObj(d)}
+                            dateFormat="d MMM yyyy"
+                            minDate={room.checkInDate ? new Date(new Date(room.checkInDate).getTime() + 86400000) : new Date()}
+                            className="block-datepicker"
+                            placeholderText="Pick date"
+                            popperPlacement="bottom-end"
+                            renderDayContents={(day, date) => {
+                              const today = new Date(); today.setHours(0,0,0,0);
+                              const isPast = date ? date < today : false;
+                              const isBeforeCI = room.checkInDate ? date! <= new Date(room.checkInDate) : false;
+                              const isDisabled = isPast || isBeforeCI;
+                              return (
+                                <div style={{ position: 'relative', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '100%', height: '100%' }}>
+                                  {day}
+                                  {isDisabled && (
+                                    <span style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%,-50%)', color: 'rgba(192,83,58,0.5)', fontSize: '1.4em', fontWeight: 300, pointerEvents: 'none', lineHeight: 1 }}>
+                                      /
+                                    </span>
+                                  )}
+                                </div>
+                              );
+                            }}
+                          />
                         </div>
                       </div>
-                      <div className="flex items-center justify-between px-3 py-2.5 rounded-xl" style={{ background: 'rgba(212,135,58,0.1)', border: '1px solid rgba(212,135,58,0.2)' }}>
+                      <div>
+                        <label className="text-xs font-semibold mb-1.5 block uppercase tracking-wide" style={{ color: '#7A7A6E' }}>Nightly Rate (₹)</label>
+                        <div className="relative">
+                          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm font-medium" style={{ color: '#7A7A6E' }}>₹</span>
+                          <input type="number" value={nightlyRate} onChange={e => setNightlyRate(e.target.value)} className="w-full pl-8 pr-3 py-2.5 rounded-xl border bg-white text-sm focus:outline-none" style={{ borderColor: 'rgba(28,58,42,0.15)' }} />
+                        </div>
+                      </div>
+                      {editCoDateObj && room.checkInDate && (() => {
+                        const newNights = Math.max(1, Math.ceil((editCoDateObj.getTime() - new Date(room.checkInDate).getTime()) / 86400000));
+                        const rate = parseFloat(nightlyRate) || room.nightlyRate;
+                        return (
+                          <div className="flex items-center gap-2 px-3 py-2.5 rounded-xl" style={{ background: 'rgba(212,135,58,0.1)', border: '1px solid rgba(212,135,58,0.25)' }}>
+                            <Moon size={14} style={{ color: '#D4873A' }} />
+                            <span className="text-sm" style={{ color: '#A36520' }}>{newNights} night{newNights !== 1 ? 's' : ''} · ₹{formatINR(newNights * rate)}</span>
+                          </div>
+                        );
+                      })()}
+                      <button
+                        onClick={() => {
+                          const newCoStr = editCoDateObj ? format(editCoDateObj, 'yyyy-MM-dd') : room.checkOutDate!;
+                          updateRoom(room.id, { checkOutDate: newCoStr, nightlyRate: parseFloat(nightlyRate) || room.nightlyRate });
+                          setShowRoomEdit(false);
+                          setEditCoDateObj(null);
+                          toast.success('Booking updated');
+                        }}
+                        className="w-full py-3 rounded-xl text-sm font-bold text-white transition-all active:scale-95"
+                        style={{ background: 'linear-gradient(135deg, #1C3A2A, #2A5A40)' }}
+                      >
+                        Save Changes
+                      </button>
+                    </div>
+                  ) : (
+                    /* ── Static view ── */
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between">
+                        <p className="text-xs font-semibold uppercase tracking-wide" style={{ color: '#7A7A6E' }}>Booking Details</p>
+                        <button
+                          onClick={() => setShowRoomEdit(true)}
+                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all active:scale-95"
+                          style={{ background: 'rgba(212,135,58,0.12)', color: '#A36520' }}
+                        >
+                          ✎ Edit
+                        </button>
+                      </div>
+                      <div className="grid grid-cols-2 gap-2">
+                        <div className="rounded-xl p-3" style={{ background: 'rgba(28,58,42,0.04)', border: '1px solid rgba(28,58,42,0.08)' }}>
+                          <p className="text-[11px] font-medium mb-0.5" style={{ color: '#7A7A6E' }}>Check-in</p>
+                          <p className="text-sm font-bold" style={{ color: '#1C3A2A' }}>{room.checkInDate ? format(new Date(room.checkInDate), 'd MMM') : '—'}</p>
+                          <p className="text-[11px]" style={{ color: '#7A7A6E' }}>{room.checkInDate ? format(new Date(room.checkInDate), 'yyyy') : ''}</p>
+                        </div>
+                        <div className="rounded-xl p-3" style={{ background: isCheckoutToday ? 'rgba(212,135,58,0.1)' : 'rgba(28,58,42,0.04)', border: `1px solid ${isCheckoutToday ? 'rgba(212,135,58,0.3)' : 'rgba(28,58,42,0.08)'}` }}>
+                          <p className="text-[11px] font-medium mb-0.5" style={{ color: '#7A7A6E' }}>Check-out</p>
+                          <p className="text-sm font-bold" style={{ color: isCheckoutToday ? '#A36520' : '#1C3A2A' }}>{room.checkOutDate ? format(new Date(room.checkOutDate), 'd MMM') : '—'}</p>
+                          <p className="text-[11px]" style={{ color: isCheckoutToday ? '#D4873A' : '#7A7A6E' }}>{isCheckoutToday ? 'Today' : room.checkOutDate ? format(new Date(room.checkOutDate), 'yyyy') : ''}</p>
+                        </div>
+                      </div>
+                      <div className="flex items-center justify-between px-3 py-2.5 rounded-xl" style={{ background: 'rgba(212,135,58,0.08)', border: '1px solid rgba(212,135,58,0.18)' }}>
                         <div className="flex items-center gap-2">
                           <Moon size={14} style={{ color: '#D4873A' }} />
-                          <span className="text-sm" style={{ color: '#A36520' }}>{nights} night{nights !== 1 ? 's' : ''} @ ₹{formatINR(room.nightlyRate)}/night</span>
+                          <span className="text-sm" style={{ color: '#A36520' }}>{nights} night{nights !== 1 ? 's' : ''} · ₹{formatINR(room.nightlyRate)}/night</span>
                         </div>
                         <span className="text-sm font-bold" style={{ color: '#A36520' }}>₹{formatINR(nights * room.nightlyRate)}</span>
                       </div>
-                      <div>
-                        <label className="text-xs font-semibold mb-1.5 block uppercase tracking-wide" style={{ color: '#7A7A6E' }}>Nightly Rate</label>
-                        <div className="flex gap-2">
-                          <div className="relative flex-1">
-                            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm font-medium" style={{ color: '#7A7A6E' }}>₹</span>
-                            <input type="number" value={nightlyRate} onChange={e => setNightlyRate(e.target.value)} className="w-full pl-8 pr-3 py-2.5 rounded-xl border bg-white text-sm focus:outline-none" style={{ borderColor: 'rgba(28,58,42,0.15)' }} />
-                          </div>
-                          <button onClick={handleUpdateRoom} className="px-4 py-2.5 rounded-xl text-sm font-semibold text-white" style={{ background: 'linear-gradient(135deg, #1C3A2A, #2A5A40)' }}>Save</button>
-                        </div>
-                      </div>
-                    </>
+                      {/* WhatsApp review request — only for today's checkouts */}
+                      {isCheckoutToday && (
+                        <a
+                          href={`https://wa.me/${room.guest?.phone ? `91${room.guest.phone}` : ''}?text=${encodeURIComponent(`Hi ${room.guest?.fullName ?? 'there'}, thank you for staying with us at The Pahadi Ghar! We'd love it if you could spare a moment to share your experience: https://g.page/r/CUb6p8ca71MEEBE/review 🙏`)}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="w-full flex items-center justify-center gap-2 py-3 rounded-xl font-medium transition-all active:scale-95"
+                          style={{ background: 'rgba(37,211,102,0.1)', color: '#128C7E', border: '1px solid rgba(37,211,102,0.3)' }}
+                        >
+                          <WhatsAppIcon size={16} />
+                          Send Review Request on WhatsApp
+                        </a>
+                      )}
+                    </div>
                   )}
-                  {/* WhatsApp review request — only for today's checkouts */}
-                  {isCheckoutToday && (
-                    <a
-                      href={`https://wa.me/${room.guest?.phone ? `91${room.guest.phone}` : ''}?text=${encodeURIComponent(`Hi ${room.guest?.fullName ?? 'there'}, thank you for staying with us at The Pahadi Ghar! We'd love it if you could spare a moment to share your experience: https://g.page/r/CUb6p8ca71MEEBE/review 🙏`)}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="w-full flex items-center justify-center gap-2 py-3 rounded-xl font-medium transition-all active:scale-95"
-                      style={{ background: 'rgba(37,211,102,0.1)', color: '#128C7E', border: '1px solid rgba(37,211,102,0.3)' }}
-                    >
-                      <WhatsAppIcon size={16} />
-                      Send Review Request on WhatsApp
-                    </a>
-                  )}
-                  <button onClick={handleCheckOut} className="w-full flex items-center justify-center gap-2 py-3 rounded-xl font-medium transition-all active:scale-95" style={{ background: 'rgba(192,83,58,0.1)', color: '#C0533A', border: '1px solid rgba(192,83,58,0.25)' }}>
-                    <ToggleLeft size={16} />
-                    Mark as Checked Out
-                  </button>
                 </div>
               )}
             </div>
-          </div>
-        )}
 
-        {/* ─── TAB: GUEST ─── */}
-        {activeTab === 'guest' && (
-          <div className="space-y-5 page-enter">
+            {/* ── Guest section (inline, below room info) ── */}
 
-            {/* Vacant — no check-in form open */}
+            {/* Vacant — prompt */}
             {room.status === 'vacant' && !showCheckInForm && (
-              <div className="rounded-2xl p-4 text-center" style={{ background: '#FFFDF9', border: '1px solid rgba(212,135,58,0.2)' }}>
-                <p className="text-2xl mb-2">👤</p>
-                <p className="text-sm font-medium" style={{ color: '#1A1A1A' }}>Set check-in dates first</p>
-                <p className="text-xs mt-1 mb-3" style={{ color: '#7A7A6E' }}>Go to Room tab and set dates before adding a guest</p>
-                <button onClick={() => { setActiveTab('info'); setShowCheckInForm(true); }} className="px-4 py-2 rounded-xl text-sm font-semibold text-white" style={{ background: 'linear-gradient(135deg, #1C3A2A, #2A5A40)' }}>Set Dates →</button>
+              <div className="rounded-2xl p-4 text-center" style={{ background: '#FFFDF9', border: '1px solid rgba(212,135,58,0.15)' }}>
+                <p className="text-xs font-semibold uppercase tracking-wide mb-1" style={{ color: '#7A7A6E' }}>Guest</p>
+                <p className="text-sm" style={{ color: '#7A7A6E' }}>No guest yet — check in above</p>
               </div>
             )}
 
@@ -481,10 +552,10 @@ export default function RoomDetailPage({ params }: { params: Promise<{ id: strin
               </div>
             )}
 
-            {/* Occupied, no group — check-in form (new guest) */}
+            {/* Check-in form: guest details */}
             {showCheckInForm && !groupBooking && (
               <div className="rounded-2xl p-4" style={{ background: '#FFFDF9', border: '1px solid rgba(28,58,42,0.08)' }}>
-                <p className="text-xs font-semibold uppercase tracking-wide mb-4" style={{ color: '#7A7A6E' }}>Add Guest</p>
+                <p className="text-xs font-semibold uppercase tracking-wide mb-4" style={{ color: '#7A7A6E' }}>Guest Details</p>
                 <GuestForm
                   initialGuest={room.guest}
                   onSave={(guest) => { handleCheckIn(guest); }}
@@ -591,11 +662,23 @@ export default function RoomDetailPage({ params }: { params: Promise<{ id: strin
                 )}
               </>
             )}
+
+            {/* ── Mark as Checked Out — bottom of overview ── */}
+            {room.status === 'occupied' && !groupBooking && (
+              <button
+                onClick={() => setShowCheckoutConfirm(true)}
+                className="w-full flex items-center justify-center gap-2 py-3.5 rounded-2xl font-semibold transition-all active:scale-95"
+                style={{ background: 'rgba(192,83,58,0.08)', color: '#C0533A', border: '1.5px solid rgba(192,83,58,0.2)' }}
+              >
+                <ToggleLeft size={17} />
+                Mark as Checked Out
+              </button>
+            )}
           </div>
         )}
 
-        {/* ─── TAB: ITEMS ─── */}
-        {activeTab === 'items' && (
+        {/* ─── TAB: FOOD ─── */}
+        {activeTab === 'food' && (
           <div className="page-enter">
             {room.status === 'vacant' ? (
               <div className="rounded-2xl p-6 text-center" style={{ background: '#FFFDF9', border: '1px solid rgba(28,58,42,0.08)' }}>
@@ -615,6 +698,115 @@ export default function RoomDetailPage({ params }: { params: Promise<{ id: strin
                   onAdd={(item: Omit<OrderItem, 'id' | 'addedAt'>) => addItem(room.id, item)}
                   onRemove={(itemId: string) => removeItem(room.id, itemId)}
                 />
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ─── TAB: NOTES ─── */}
+        {activeTab === 'notes' && (
+          <div className="space-y-4 page-enter">
+            {/* Add note form */}
+            <div className="rounded-2xl p-4 space-y-3" style={{ background: '#FFFDF9', border: '1px solid rgba(212,135,58,0.2)' }}>
+              <p className="text-xs font-semibold uppercase tracking-wide" style={{ color: '#7A7A6E' }}>Add Staff Note</p>
+
+              {/* Category pills */}
+              <div className="flex flex-wrap gap-2">
+                {([
+                  { id: 'food',      label: '🍽 Food Pref',    color: '#3E6B47', bg: 'rgba(62,107,71,0.1)' },
+                  { id: 'request',   label: '✋ Request',       color: '#D4873A', bg: 'rgba(212,135,58,0.1)' },
+                  { id: 'transport', label: '🚗 Transport',     color: '#3B82F6', bg: 'rgba(59,130,246,0.1)' },
+                  { id: 'general',   label: '📝 General',       color: '#7A7A6E', bg: 'rgba(28,58,42,0.07)' },
+                ] as { id: NoteCategory; label: string; color: string; bg: string }[]).map(cat => (
+                  <button
+                    key={cat.id}
+                    onClick={() => setNoteCategory(cat.id)}
+                    className="px-3 py-1.5 rounded-lg text-xs font-semibold transition-all"
+                    style={{
+                      background: noteCategory === cat.id ? cat.bg : 'rgba(28,58,42,0.04)',
+                      color: noteCategory === cat.id ? cat.color : '#7A7A6E',
+                      border: `1.5px solid ${noteCategory === cat.id ? cat.color + '40' : 'rgba(28,58,42,0.1)'}`,
+                    }}
+                  >
+                    {cat.label}
+                  </button>
+                ))}
+              </div>
+
+              <textarea
+                rows={3}
+                placeholder={
+                  noteCategory === 'food'      ? 'e.g. Guest is vegetarian, no onion/garlic…' :
+                  noteCategory === 'request'   ? 'e.g. Extra blanket needed, wants early check-in…' :
+                  noteCategory === 'transport' ? 'e.g. Needs taxi tomorrow at 8 AM to Aut…' :
+                  'e.g. VIP guest, celebrating anniversary…'
+                }
+                value={noteText}
+                onChange={e => setNoteText(e.target.value)}
+                className="w-full px-3 py-2.5 rounded-xl border text-sm resize-none focus:outline-none focus:ring-2 transition-all"
+                style={{ borderColor: 'rgba(28,58,42,0.15)', background: '#fff', lineHeight: 1.5 }}
+              />
+
+              <button
+                onClick={() => {
+                  if (!noteText.trim()) return;
+                  addNote(room.id, { text: noteText.trim(), category: noteCategory });
+                  setNoteText('');
+                  toast.success('Note added');
+                }}
+                disabled={!noteText.trim()}
+                className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold text-white transition-all active:scale-95 disabled:opacity-40"
+                style={{ background: 'linear-gradient(135deg, #1C3A2A, #2A5A40)' }}
+              >
+                <Plus size={15} />
+                Save Note
+              </button>
+            </div>
+
+            {/* Notes list */}
+            {(room.notes || []).length === 0 ? (
+              <div className="text-center py-8">
+                <StickyNote size={32} className="mx-auto mb-2 opacity-20" style={{ color: '#7A7A6E' }} />
+                <p className="text-sm" style={{ color: '#7A7A6E' }}>No notes yet</p>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {[...(room.notes || [])].reverse().map(note => {
+                  const catMeta = {
+                    food:      { label: 'Food Pref',  color: '#3E6B47', bg: 'rgba(62,107,71,0.08)'    },
+                    request:   { label: 'Request',    color: '#D4873A', bg: 'rgba(212,135,58,0.08)'  },
+                    transport: { label: 'Transport',  color: '#3B82F6', bg: 'rgba(59,130,246,0.08)'  },
+                    general:   { label: 'General',    color: '#7A7A6E', bg: 'rgba(28,58,42,0.05)'    },
+                  }[note.category];
+                  return (
+                    <div
+                      key={note.id}
+                      className="rounded-xl p-3.5"
+                      style={{ background: catMeta.bg, border: `1px solid ${catMeta.color}20` }}
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-1">
+                            <span className="text-[10px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded-md" style={{ background: catMeta.color + '18', color: catMeta.color }}>
+                              {catMeta.label}
+                            </span>
+                            <span className="text-[11px]" style={{ color: '#AAAAAA' }}>
+                              {format(parseISO(note.addedAt), 'd MMM, h:mm a')}
+                            </span>
+                          </div>
+                          <p className="text-sm leading-relaxed" style={{ color: '#1C3A2A' }}>{note.text}</p>
+                        </div>
+                        <button
+                          onClick={() => removeNote(room.id, note.id)}
+                          className="p-1.5 rounded-lg flex-shrink-0 transition-all active:scale-90"
+                          style={{ color: '#C0533A', background: 'rgba(192,83,58,0.08)' }}
+                        >
+                          <Trash2 size={13} />
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             )}
           </div>
@@ -652,6 +844,46 @@ export default function RoomDetailPage({ params }: { params: Promise<{ id: strin
           </div>
         )}
       </div>
+
+      {/* ── Checkout confirmation modal ── */}
+      {showCheckoutConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.5)' }}>
+          <div className="w-full max-w-sm rounded-3xl p-6" style={{ background: '#FFFDF9', boxShadow: '0 20px 60px rgba(28,58,42,0.25)' }}>
+            <div className="text-center mb-1">
+              <div className="w-14 h-14 rounded-2xl flex items-center justify-center mx-auto mb-3" style={{ background: 'rgba(192,83,58,0.1)' }}>
+                <ToggleLeft size={26} style={{ color: '#C0533A' }} />
+              </div>
+              <h3 className="text-base font-bold" style={{ fontFamily: 'var(--font-playfair)', color: '#1C3A2A' }}>
+                Check out {room.guest?.fullName}?
+              </h3>
+              <p className="text-sm mt-1.5" style={{ color: 'rgba(28,58,42,0.55)' }}>
+                This will mark the room as vacant. Make sure the bill is settled before checking out.
+              </p>
+            </div>
+            {balance > 0 && (
+              <div className="mt-3 px-4 py-2.5 rounded-xl text-center" style={{ background: 'rgba(192,83,58,0.07)', border: '1px solid rgba(192,83,58,0.2)' }}>
+                <p className="text-sm font-semibold" style={{ color: '#C0533A' }}>₹{formatINR(balance)} balance due</p>
+              </div>
+            )}
+            <div className="flex gap-3 mt-5">
+              <button
+                onClick={() => setShowCheckoutConfirm(false)}
+                className="flex-1 py-3.5 rounded-2xl text-sm font-semibold"
+                style={{ background: 'rgba(28,58,42,0.08)', color: '#1C3A2A' }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => { setShowCheckoutConfirm(false); handleCheckOut(); }}
+                className="flex-1 py-3.5 rounded-2xl text-sm font-bold"
+                style={{ background: '#C0533A', color: '#fff' }}
+              >
+                Yes, Check Out
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -8,6 +8,9 @@ import AddItemSheet from './AddItemSheet';
 
 interface Props {
   items: ShoppingItem[];
+  listTitle?: string;
+  shopkeeperName?: string;
+  listCategory?: string;
   onAddItem: (item: Omit<ShoppingItem, 'id' | 'listId' | 'createdAt' | 'status'>) => void;
   onUpdateItem: (id: string, changes: Partial<ShoppingItem>) => void;
   onDeleteItem: (id: string) => void;
@@ -16,7 +19,7 @@ interface Props {
   onCreateList: () => void;
 }
 
-export default function Phase1({ items, onAddItem, onUpdateItem, onDeleteItem, onSendForReview, listExists, onCreateList }: Props) {
+export default function Phase1({ items, listTitle, shopkeeperName, listCategory, onAddItem, onUpdateItem, onDeleteItem, onSendForReview, listExists, onCreateList }: Props) {
   const [showSheet, setShowSheet] = useState(false);
   const [menuOpen, setMenuOpen] = useState<string | null>(null);
   const [editId, setEditId] = useState<string | null>(null);
@@ -32,6 +35,22 @@ export default function Phase1({ items, onAddItem, onUpdateItem, onDeleteItem, o
 
   return (
     <div className="px-4 md:px-8 pt-4 pb-8">
+      {/* Shopkeeper / category info */}
+      {(shopkeeperName || listCategory) && (
+        <div className="flex flex-wrap gap-2 mb-4">
+          {shopkeeperName && (
+            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold" style={{ background: 'rgba(62,107,71,0.1)', color: '#3E6B47', border: '1px solid rgba(62,107,71,0.2)' }}>
+              🏪 For: {shopkeeperName}
+            </div>
+          )}
+          {listCategory && (
+            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold" style={{ background: 'rgba(212,135,58,0.1)', color: '#A36520' }}>
+              {listCategory}
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Add button at top */}
       <button
         onClick={() => { if (!listExists) onCreateList(); setShowSheet(true); }}

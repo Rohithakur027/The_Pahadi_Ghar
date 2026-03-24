@@ -4,7 +4,7 @@ import { use, useRef, useState } from 'react';
 import { useHomestay, calculateTotal, calculateGroupTotal } from '@/context/HomestayContext';
 import { useRouter } from 'next/navigation';
 import { format, parseISO } from 'date-fns';
-import { ArrowLeft, Pencil, Download, Loader2, MessageCircle } from 'lucide-react';
+import { ArrowLeft, Pencil, Download, Loader2 } from 'lucide-react';
 
 const ROOM_META: Record<string, { emoji: string; label: string }> = {
   'room-gushaini':    { emoji: '🏡', label: 'Room (Gushaini)' },
@@ -46,6 +46,7 @@ export default function BillPage({ params }: { params: Promise<{ type: string; i
   const router = useRouter();
   const { rooms, groupBookings } = useHomestay();
   const billRef = useRef<HTMLDivElement>(null);
+  const pdfRef = useRef<HTMLDivElement>(null);
   const [downloading, setDownloading] = useState(false);
   const [sendingWa, setSendingWa] = useState(false);
 
@@ -113,14 +114,13 @@ export default function BillPage({ params }: { params: Promise<{ type: string; i
   };
 
   const handleDownload = async () => {
-    if (!billRef.current) return;
+    if (!pdfRef.current) return;
     setDownloading(true);
     try {
       const html2canvas = (await import('html2canvas')).default;
       const jsPDF = (await import('jspdf')).default;
 
-      // Capture only the bill element, not the whole page
-      const el = billRef.current;
+      const el = pdfRef.current;
       const canvas = await html2canvas(el, {
         scale: 2,
         useCORS: true,
@@ -130,27 +130,34 @@ export default function BillPage({ params }: { params: Promise<{ type: string; i
         height: el.scrollHeight,
         windowWidth: el.scrollWidth,
         windowHeight: el.scrollHeight,
-        x: 0,
-        y: 0,
-        scrollX: 0,
-        scrollY: 0,
+        x: 0, y: 0, scrollX: 0, scrollY: 0,
       });
 
-      const imgData = canvas.toDataURL('image/jpeg', 0.95);
       const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
-      const A4_W = 210; // mm
-      const A4_H = 297; // mm
-      // Scale image to fit A4 width with margins
+      const A4_W = 210;
+      const A4_H = 297;
       const margin = 10;
       const imgW = A4_W - margin * 2;
-      const imgH = (canvas.height / canvas.width) * imgW;
-      // If taller than A4, scale down proportionally
-      const finalW = imgH > A4_H - margin * 2 ? ((A4_H - margin * 2) / imgH) * imgW : imgW;
-      const finalH = imgH > A4_H - margin * 2 ? A4_H - margin * 2 : imgH;
-      pdf.addImage(imgData, 'JPEG', margin, margin, finalW, finalH);
+      const pageHeightMm = A4_H - margin * 2;
+      // How many canvas pixels fit in one page height
+      const pageHeightPx = Math.floor((pageHeightMm / imgW) * canvas.width);
+
+      let yOffset = 0;
+      let pageIndex = 0;
+      while (yOffset < canvas.height) {
+        const sliceH = Math.min(pageHeightPx, canvas.height - yOffset);
+        const pageCanvas = document.createElement('canvas');
+        pageCanvas.width = canvas.width;
+        pageCanvas.height = sliceH;
+        const ctx = pageCanvas.getContext('2d')!;
+        ctx.drawImage(canvas, 0, yOffset, canvas.width, sliceH, 0, 0, canvas.width, sliceH);
+        const sliceImgH = (sliceH / canvas.width) * imgW;
+        if (pageIndex > 0) pdf.addPage();
+        pdf.addImage(pageCanvas.toDataURL('image/jpeg', 0.95), 'JPEG', margin, margin, imgW, sliceImgH);
+        yOffset += sliceH;
+        pageIndex++;
+      }
       pdf.save(`Bill_${guestName.replace(/\s+/g, '_')}_${bookingId}.pdf`);
-    } catch {
-      window.print();
     } finally {
       setDownloading(false);
     }
@@ -211,8 +218,143 @@ export default function BillPage({ params }: { params: Promise<{ type: string; i
           >
             {sendingWa
               ? <Loader2 size={17} className="animate-spin text-white" />
-              : <MessageCircle size={17} className="text-white" />}
+              : (
+                <svg width="17" height="17" viewBox="0 0 24 24" fill="white">
+                  <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/>
+                </svg>
+              )}
           </button>
+        </div>
+      </div>
+
+      {/* ── Hidden PDF capture div (off-screen) ── */}
+      <div style={{ position: 'fixed', top: -9999, left: -9999, zIndex: -1, pointerEvents: 'none' }}>
+        <div ref={pdfRef} style={{ width: 595, background: '#ffffff', fontFamily: 'Georgia, serif' }}>
+          {/* Header */}
+          <div style={{ background: 'linear-gradient(160deg, #1C3A2A 0%, #2D5C40 100%)', padding: '36px 48px 28px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+              <div>
+                <div style={{ color: '#D4873A', fontSize: 10, fontWeight: 700, letterSpacing: 3, textTransform: 'uppercase', marginBottom: 6, fontFamily: 'Arial, sans-serif' }}>
+                  Tirthan Valley, Himachal Pradesh
+                </div>
+                <div style={{ color: '#FFFDF9', fontSize: 28, fontWeight: 700, letterSpacing: '-0.5px', lineHeight: 1.1 }}>
+                  The Pahadi Ghar
+                </div>
+                <div style={{ color: 'rgba(255,255,255,0.45)', fontSize: 12, marginTop: 4, fontFamily: 'Arial, sans-serif' }}>
+                  Your Himalayan Homestay
+                </div>
+              </div>
+              <div style={{ textAlign: 'right' }}>
+                <div style={{ color: 'rgba(255,255,255,0.4)', fontSize: 10, fontFamily: 'Arial, sans-serif', marginBottom: 4 }}>
+                  {format(new Date(), 'd MMM yyyy')}
+                </div>
+                <div style={{ display: 'inline-block', background: 'rgba(212,135,58,0.25)', border: '1px solid rgba(212,135,58,0.5)', borderRadius: 4, padding: '4px 10px', color: '#D4873A', fontSize: 11, fontWeight: 700, letterSpacing: 1, fontFamily: 'Arial, sans-serif' }}>
+                  ID #{bookingId}
+                </div>
+              </div>
+            </div>
+            <div style={{ marginTop: 24, paddingTop: 18, borderTop: '1px solid rgba(255,255,255,0.12)' }}>
+              <div style={{ color: 'rgba(255,255,255,0.5)', fontSize: 10, letterSpacing: 2, textTransform: 'uppercase', fontFamily: 'Arial, sans-serif', marginBottom: 4 }}>
+                Bill For
+              </div>
+              <div style={{ color: '#FFFDF9', fontSize: 20, fontWeight: 600 }}>{guestName}</div>
+            </div>
+          </div>
+
+          {/* Body */}
+          <div style={{ padding: '0 48px 40px' }}>
+            {/* Guest Information */}
+            <div style={{ marginTop: 28, marginBottom: 12, paddingBottom: 6, borderBottom: '2px solid #1C3A2A' }}>
+              <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: 2, textTransform: 'uppercase', color: '#1C3A2A', fontFamily: 'Arial, sans-serif' }}>Guest Information</span>
+            </div>
+            {[
+              { label: 'Full Name', value: guestName },
+              { label: 'Phone', value: guestPhone ? `+91 ${guestPhone}` : '-' },
+              { label: 'Guests', value: `${adults} Adult${adults !== 1 ? 's' : ''}${children > 0 ? `, ${children} Child${children !== 1 ? 'ren' : ''}` : ''}` },
+            ].map(row => (
+              <div key={row.label} style={{ display: 'flex', justifyContent: 'space-between', padding: '9px 0', borderBottom: '1px solid #F0EDE8' }}>
+                <span style={{ fontSize: 13, color: '#5A5A52', fontFamily: 'Arial, sans-serif', minWidth: 160 }}>{row.label}</span>
+                <span style={{ fontSize: 13, fontWeight: 600, color: '#1A1A1A', textAlign: 'right', flex: 1 }}>{row.value}</span>
+              </div>
+            ))}
+
+            {/* Room Details */}
+            <div style={{ marginTop: 24, marginBottom: 12, paddingBottom: 6, borderBottom: '2px solid #1C3A2A' }}>
+              <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: 2, textTransform: 'uppercase', color: '#1C3A2A', fontFamily: 'Arial, sans-serif' }}>Room Details</span>
+            </div>
+            {type === 'room' && room && [
+              { label: 'Room', value: room.name },
+              { label: 'Check-in', value: checkIn ? format(parseISO(checkIn), 'd MMMM yyyy, EEEE') : '-' },
+              { label: 'Check-out', value: checkOut ? format(parseISO(checkOut), 'd MMMM yyyy, EEEE') : '-' },
+              { label: 'Duration', value: `${nights} Night${nights !== 1 ? 's' : ''}` },
+              { label: 'Nightly Rate', value: `Rs. ${formatINR(room.nightlyRate)}` },
+              { label: 'Room Charge', value: `Rs. ${formatINR(roomCharge)}` },
+            ].map((row, i) => (
+              <div key={i} style={{ display: 'flex', justifyContent: 'space-between', padding: '9px 0', borderBottom: '1px solid #F0EDE8' }}>
+                <span style={{ fontSize: 13, color: '#5A5A52', fontFamily: 'Arial, sans-serif', minWidth: 160 }}>{row.label}</span>
+                <span style={{ fontSize: 13, fontWeight: 600, color: '#1A1A1A', textAlign: 'right', flex: 1 }}>{row.value}</span>
+              </div>
+            ))}
+            {type === 'booking' && booking && [
+              ...booking.roomIds.map(rid => ({ label: ROOM_META[rid]?.label || rid, value: `${booking.nights} nights x Rs. ${formatINR(booking.roomRates[rid] ?? 0)}` })),
+              { label: 'Check-in', value: checkIn ? format(parseISO(checkIn), 'd MMMM yyyy, EEEE') : '-' },
+              { label: 'Check-out', value: checkOut ? format(parseISO(checkOut), 'd MMMM yyyy, EEEE') : '-' },
+              { label: 'Duration', value: `${nights} Night${nights !== 1 ? 's' : ''}` },
+              { label: 'Room Charges', value: `Rs. ${formatINR(roomCharge)}` },
+            ].map((row, i) => (
+              <div key={i} style={{ display: 'flex', justifyContent: 'space-between', padding: '9px 0', borderBottom: '1px solid #F0EDE8' }}>
+                <span style={{ fontSize: 13, color: '#5A5A52', fontFamily: 'Arial, sans-serif', minWidth: 160 }}>{row.label}</span>
+                <span style={{ fontSize: 13, fontWeight: 600, color: '#1A1A1A', textAlign: 'right', flex: 1 }}>{row.value}</span>
+              </div>
+            ))}
+
+            {/* Meals & Services */}
+            {items.length > 0 && (
+              <>
+                <div style={{ marginTop: 24, marginBottom: 12, paddingBottom: 6, borderBottom: '2px solid #1C3A2A' }}>
+                  <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: 2, textTransform: 'uppercase', color: '#1C3A2A', fontFamily: 'Arial, sans-serif' }}>Meals &amp; Services</span>
+                </div>
+                {items.map(item => (
+                  <div key={item.id} style={{ display: 'flex', justifyContent: 'space-between', padding: '9px 0', borderBottom: '1px solid #F0EDE8' }}>
+                    <span style={{ fontSize: 13, color: '#5A5A52', fontFamily: 'Arial, sans-serif', minWidth: 160 }}>{item.name}{item.quantity > 1 ? ` x ${item.quantity}` : ''}</span>
+                    <span style={{ fontSize: 13, fontWeight: 600, color: '#1A1A1A', textAlign: 'right', flex: 1 }}>Rs. {formatINR(item.quantity * item.pricePerUnit)}</span>
+                  </div>
+                ))}
+              </>
+            )}
+
+            {/* Payment Details */}
+            <div style={{ marginTop: 24, marginBottom: 12, paddingBottom: 6, borderBottom: '2px solid #1C3A2A' }}>
+              <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: 2, textTransform: 'uppercase', color: '#1C3A2A', fontFamily: 'Arial, sans-serif' }}>Payment Details</span>
+            </div>
+            {[
+              { label: 'Room Charges', value: `Rs. ${formatINR(roomCharge)}` },
+              ...(itemsTotal > 0 ? [{ label: 'Meals & Services', value: `Rs. ${formatINR(itemsTotal)}` }] : []),
+              { label: 'Grand Total', value: `Rs. ${formatINR(grandTotal)}`, bold: true },
+              { label: 'Amount Paid', value: `Rs. ${formatINR(amountPaid)}`, color: '#3E6B47' },
+            ].map((row, i) => (
+              <div key={i} style={{ display: 'flex', justifyContent: 'space-between', padding: '9px 0', borderBottom: '1px solid #F0EDE8' }}>
+                <span style={{ fontSize: 13, color: '#5A5A52', fontFamily: 'Arial, sans-serif', minWidth: 160 }}>{row.label}</span>
+                <span style={{ fontSize: 13, fontWeight: (row as any).bold ? 700 : 600, color: (row as any).color || '#1A1A1A', textAlign: 'right', flex: 1 }}>{row.value}</span>
+              </div>
+            ))}
+
+            {/* Balance Due */}
+            <div style={{ marginTop: 16, padding: '14px 20px', borderRadius: 6, background: balance > 0 ? '#FEF3F0' : '#F0FDF4', border: `1.5px solid ${balance > 0 ? '#C0533A' : '#3E6B47'}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span style={{ fontSize: 13, fontWeight: 700, color: balance > 0 ? '#C0533A' : '#3E6B47', fontFamily: 'Arial, sans-serif' }}>
+                {balance > 0 ? 'Balance Due at Check-in' : 'Fully Paid'}
+              </span>
+              <span style={{ fontSize: 18, fontWeight: 700, color: balance > 0 ? '#C0533A' : '#3E6B47' }}>
+                Rs. {formatINR(balance)}
+              </span>
+            </div>
+
+            {/* Footer */}
+            <div style={{ marginTop: 36, paddingTop: 20, borderTop: '1px solid #E8E4DF', textAlign: 'center' }}>
+              <div style={{ fontSize: 13, color: '#1C3A2A', fontWeight: 600, marginBottom: 4 }}>Thank you for staying with us!</div>
+              <div style={{ fontSize: 11, color: '#9A9A92', fontFamily: 'Arial, sans-serif' }}>The Pahadi Ghar · Tirthan Valley, Himachal Pradesh</div>
+            </div>
+          </div>
         </div>
       </div>
 

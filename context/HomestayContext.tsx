@@ -1,15 +1,15 @@
 'use client';
 
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import { Room, Guest, OrderItem, ActivityLog, Payment, PaymentStatus, BlockedBooking, GroupBooking, AadharEntry } from '@/types';
+import { Room, Guest, OrderItem, ActivityLog, Payment, PaymentStatus, BlockedBooking, GroupBooking, AadharEntry, StaffNote } from '@/types';
 
 const DATA_VERSION = 'v2';
 
 const INITIAL_ROOMS: Room[] = [
-  { id: 'room-gushaini',    name: 'Room (Gushaini)',         emoji: '🏡', status: 'vacant', nightlyRate: 2500, items: [], amountPaid: 0, paymentStatus: 'unpaid' },
-  { id: 'room-banjar',      name: 'Room (Banjar)',           emoji: '🌄', status: 'vacant', nightlyRate: 2500, items: [], amountPaid: 0, paymentStatus: 'unpaid' },
-  { id: 'rooftop-gushaini', name: 'RooftopCottage (Gushaini)', emoji: '🏔️', status: 'vacant', nightlyRate: 3500, items: [], amountPaid: 0, paymentStatus: 'unpaid' },
-  { id: 'rooftop-banjar',   name: 'RooftopCottage (Banjar)',   emoji: '⛺', status: 'vacant', nightlyRate: 3500, items: [], amountPaid: 0, paymentStatus: 'unpaid' },
+  { id: 'room-gushaini',    name: 'Room (Gushaini)',         emoji: '🏡', status: 'vacant', nightlyRate: 2500, items: [], notes: [], amountPaid: 0, paymentStatus: 'unpaid' },
+  { id: 'room-banjar',      name: 'Room (Banjar)',           emoji: '🌄', status: 'vacant', nightlyRate: 2500, items: [], notes: [], amountPaid: 0, paymentStatus: 'unpaid' },
+  { id: 'rooftop-gushaini', name: 'RooftopCottage (Gushaini)', emoji: '🏔️', status: 'vacant', nightlyRate: 3500, items: [], notes: [], amountPaid: 0, paymentStatus: 'unpaid' },
+  { id: 'rooftop-banjar',   name: 'RooftopCottage (Banjar)',   emoji: '⛺', status: 'vacant', nightlyRate: 3500, items: [], notes: [], amountPaid: 0, paymentStatus: 'unpaid' },
 ];
 
 interface HomestayContextType {
@@ -21,6 +21,8 @@ interface HomestayContextType {
   updateRoom: (roomId: string, updates: Partial<Room>) => void;
   addItem: (roomId: string, item: Omit<OrderItem, 'id' | 'addedAt'>) => void;
   removeItem: (roomId: string, itemId: string) => void;
+  addNote: (roomId: string, note: Omit<StaffNote, 'id' | 'addedAt'>) => void;
+  removeNote: (roomId: string, noteId: string) => void;
   updateGuest: (roomId: string, guest: Guest) => void;
   recordPayment: (roomId: string, amount: number) => void;
   checkIn: (roomId: string, guest: Guest, checkInDate: string, checkOutDate: string, nightlyRate: number) => void;
@@ -106,6 +108,15 @@ export function HomestayProvider({ children }: { children: React.ReactNode }) {
 
   const removeItem = useCallback((roomId: string, itemId: string) => {
     setRooms(prev => prev.map(r => r.id === roomId ? { ...r, items: r.items.filter(i => i.id !== itemId) } : r));
+  }, []);
+
+  const addNote = useCallback((roomId: string, note: Omit<StaffNote, 'id' | 'addedAt'>) => {
+    const newNote: StaffNote = { ...note, id: crypto.randomUUID(), addedAt: new Date().toISOString() };
+    setRooms(prev => prev.map(r => r.id === roomId ? { ...r, notes: [...(r.notes || []), newNote] } : r));
+  }, []);
+
+  const removeNote = useCallback((roomId: string, noteId: string) => {
+    setRooms(prev => prev.map(r => r.id === roomId ? { ...r, notes: (r.notes || []).filter(n => n.id !== noteId) } : r));
   }, []);
 
   const updateGuest = useCallback((roomId: string, guest: Guest) => {
@@ -244,7 +255,7 @@ export function HomestayProvider({ children }: { children: React.ReactNode }) {
   return (
     <HomestayContext.Provider value={{
       rooms, activityLog, payments, blockedBookings, groupBookings,
-      updateRoom, addItem, removeItem, updateGuest, recordPayment, checkIn, checkOut, getMonthlyRevenue,
+      updateRoom, addItem, removeItem, addNote, removeNote, updateGuest, recordPayment, checkIn, checkOut, getMonthlyRevenue,
       addBlockedBooking, cancelBlockedBooking, checkInFromBlock,
       createGroupBooking, addGroupItem, removeGroupItem, addGroupAadhar, removeGroupAadhar, recordGroupPayment, checkOutGroup,
     }}>

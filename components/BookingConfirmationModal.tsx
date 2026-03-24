@@ -1,4 +1,4 @@
-'use client';
+ 'use client';
 
 import { useRef, useState, useEffect } from 'react';
 import { format, parseISO } from 'date-fns';
@@ -158,13 +158,29 @@ export default function BookingConfirmationModal({ data, onClose }: Props) {
       x: 0, y: 0, scrollX: 0, scrollY: 0,
     });
 
-    const imgData = canvas.toDataURL('image/jpeg', 0.95);
     const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
     const A4_W = 210;
+    const A4_H = 297;
     const margin = 10;
     const imgW = A4_W - margin * 2;
-    const imgH = (canvas.height / canvas.width) * imgW;
-    pdf.addImage(imgData, 'JPEG', margin, margin, imgW, imgH);
+    const pageHeightMm = A4_H - margin * 2;
+    const pageHeightPx = Math.floor((pageHeightMm / imgW) * canvas.width);
+
+    let yOffset = 0;
+    let pageIndex = 0;
+    while (yOffset < canvas.height) {
+      const sliceH = Math.min(pageHeightPx, canvas.height - yOffset);
+      const pageCanvas = document.createElement('canvas');
+      pageCanvas.width = canvas.width;
+      pageCanvas.height = sliceH;
+      const ctx = pageCanvas.getContext('2d')!;
+      ctx.drawImage(canvas, 0, yOffset, canvas.width, sliceH, 0, 0, canvas.width, sliceH);
+      const sliceImgH = (sliceH / canvas.width) * imgW;
+      if (pageIndex > 0) pdf.addPage();
+      pdf.addImage(pageCanvas.toDataURL('image/jpeg', 0.95), 'JPEG', margin, margin, imgW, sliceImgH);
+      yOffset += sliceH;
+      pageIndex++;
+    }
     return pdf.output('blob');
   };
 
@@ -239,11 +255,12 @@ export default function BookingConfirmationModal({ data, onClose }: Props) {
       {/* Modal sheet */}
       <div className="fixed inset-0 z-[90] flex items-end md:items-center justify-center p-4 pointer-events-none">
         <div
-          className="w-full max-w-sm rounded-3xl overflow-hidden pointer-events-auto slide-up"
+          className="w-full max-w-sm rounded-3xl pointer-events-auto slide-up"
           style={{
             background: '#FFFDF9',
             boxShadow: '0 20px 60px rgba(28,58,42,0.3)',
             maxHeight: '90vh',
+            overflowX: 'hidden',
             overflowY: 'auto',
           }}
         >
@@ -338,7 +355,7 @@ export default function BookingConfirmationModal({ data, onClose }: Props) {
           </div>
 
           {/* ── Action Buttons ── */}
-          <div className="px-5 pb-6 space-y-2.5">
+          <div className="px-5 pb-10 space-y-2.5">
             {/* WhatsApp — primary */}
             <button
               onClick={handleWhatsApp}

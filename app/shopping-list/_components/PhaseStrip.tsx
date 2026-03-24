@@ -1,13 +1,12 @@
 'use client';
 
 const STEPS = [
-  { n: 1, label: 'Add' },
-  { n: 2, label: 'Review' },
-  { n: 3, label: 'Assign' },
-  { n: 4, label: 'Send' },
+  { n: 1, label: 'Add Items' },
+  { n: 2, label: 'Review'    },
+  { n: 3, label: 'Send'      },
 ];
 
-export default function PhaseStrip({ phase }: { phase: 1 | 2 | 3 | 4 }) {
+export default function PhaseStrip({ phase }: { phase: 1 | 2 | 3 }) {
   return (
     <div className="flex items-center gap-0 mb-1">
       {STEPS.map(({ n, label }, i) => {
@@ -34,7 +33,7 @@ export default function PhaseStrip({ phase }: { phase: 1 | 2 | 3 | 4 }) {
             </div>
             {i < STEPS.length - 1 && (
               <div
-                className="w-6 h-px mx-1 flex-shrink-0"
+                className="w-8 h-px mx-1.5 flex-shrink-0"
                 style={{ background: done ? '#22C55E' : 'rgba(28,58,42,0.15)' }}
               />
             )}

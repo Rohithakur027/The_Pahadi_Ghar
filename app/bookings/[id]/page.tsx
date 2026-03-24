@@ -1,6 +1,6 @@
 'use client';
 
-import { use, useState, useRef } from 'react';
+import { use, useState, useRef, useEffect } from 'react';
 import { useHomestay, calculateGroupTotal } from '@/context/HomestayContext';
 import { useRouter } from 'next/navigation';
 import { format, parseISO } from 'date-fns';
@@ -11,6 +11,45 @@ import {
 } from 'lucide-react';
 import { OrderItem, AadharEntry } from '@/types';
 import toast from 'react-hot-toast';
+
+const MENU: { name: string; price: number; category: string }[] = [
+  { name: 'Tea',               price: 30,  category: 'Food' },
+  { name: 'Coffee',            price: 50,  category: 'Food' },
+  { name: 'Maggi',             price: 60,  category: 'Food' },
+  { name: 'Bread Toast',       price: 40,  category: 'Food' },
+  { name: 'Omelette',          price: 60,  category: 'Food' },
+  { name: 'Paratha',           price: 70,  category: 'Food' },
+  { name: 'Dal Rice',          price: 120, category: 'Food' },
+  { name: 'Rajma Rice',        price: 130, category: 'Food' },
+  { name: 'Fried Rice',        price: 150, category: 'Food' },
+  { name: 'Aloo Sabzi',        price: 80,  category: 'Food' },
+  { name: 'Mineral Water',     price: 20,  category: 'Food' },
+  { name: 'Soft Drink',        price: 40,  category: 'Food' },
+  { name: 'Lassi',             price: 60,  category: 'Food' },
+  { name: 'Fresh Juice',       price: 80,  category: 'Food' },
+  { name: 'Snacks',            price: 50,  category: 'Food' },
+  { name: 'Bonfire',           price: 500, category: 'Service' },
+  { name: 'Heater',            price: 200, category: 'Service' },
+  { name: 'Extra Blanket',     price: 50,  category: 'Service' },
+  { name: 'BBQ',               price: 300, category: 'Service' },
+  { name: 'Laundry',          price: 100, category: 'Service' },
+  { name: 'Room Cleaning',     price: 100, category: 'Service' },
+  { name: 'Nature Walk Guide', price: 500, category: 'Service' },
+  { name: 'Cab / Pick-up',     price: 500, category: 'Service' },
+];
+
+function HighlightedText({ text, query }: { text: string; query: string }) {
+  if (!query) return <>{text}</>;
+  const idx = text.toLowerCase().indexOf(query.toLowerCase());
+  if (idx === -1) return <>{text}</>;
+  return (
+    <>
+      {text.slice(0, idx)}
+      <span style={{ color: '#D4873A', fontWeight: 700 }}>{text.slice(idx, idx + query.length)}</span>
+      {text.slice(idx + query.length)}
+    </>
+  );
+}
 
 function WhatsAppIcon({ size }: { size: number }) {
   return (
@@ -63,6 +102,22 @@ export default function GroupBookingPage({ params }: { params: Promise<{ id: str
   const [itemName, setItemName] = useState('');
   const [itemQty, setItemQty] = useState('1');
   const [itemPrice, setItemPrice] = useState('');
+  const [itemDropdownOpen, setItemDropdownOpen] = useState(false);
+  const itemDropdownRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function onOutside(e: MouseEvent) {
+      if (itemDropdownRef.current && !itemDropdownRef.current.contains(e.target as Node)) {
+        setItemDropdownOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', onOutside);
+    return () => document.removeEventListener('mousedown', onOutside);
+  }, []);
+
+  const itemSuggestions = itemName.trim().length > 0
+    ? MENU.filter(m => m.name.toLowerCase().includes(itemName.toLowerCase())).slice(0, 4)
+    : [];
 
   // Add aadhar form
   const [aName, setAName] = useState('');
@@ -313,7 +368,49 @@ export default function GroupBookingPage({ params }: { params: Promise<{ id: str
             {showAddItem && (
               <div className="rounded-2xl p-4 space-y-3" style={{ background: '#FFFDF9', border: '1px solid rgba(212,135,58,0.2)' }}>
                 <p className="text-xs font-bold uppercase tracking-widest" style={{ color: '#7A7A6E' }}>New Item</p>
-                <input type="text" placeholder="Item name (Maggi, Chai, Blanket…)" value={itemName} onChange={e => setItemName(e.target.value)} className={inputCls} style={inputStyle} />
+
+                {/* Name input with autocomplete */}
+                <div ref={itemDropdownRef} className="relative">
+                  <input
+                    type="text"
+                    placeholder="Item name (e.g. Tea, Bonfire, Heater…)"
+                    value={itemName}
+                    onChange={e => { setItemName(e.target.value); setItemDropdownOpen(true); if (!e.target.value) setItemPrice(''); }}
+                    onFocus={() => itemName.trim() && setItemDropdownOpen(true)}
+                    className={inputCls}
+                    style={inputStyle}
+                    autoComplete="off"
+                  />
+                  {itemDropdownOpen && itemSuggestions.length > 0 && (
+                    <div
+                      className="absolute left-0 right-0 z-50 mt-1 rounded-xl overflow-hidden"
+                      style={{ background: '#FFFDF9', border: '1px solid rgba(212,135,58,0.3)', boxShadow: '0 8px 24px rgba(28,58,42,0.12)' }}
+                    >
+                      {itemSuggestions.map((item, i) => (
+                        <button
+                          key={item.name}
+                          type="button"
+                          onMouseDown={() => { setItemName(item.name); setItemPrice(String(item.price)); setItemDropdownOpen(false); }}
+                          className="w-full flex items-center justify-between px-3 py-2.5 text-left transition-all"
+                          style={{ borderBottom: i < itemSuggestions.length - 1 ? '1px solid rgba(28,58,42,0.06)' : 'none', background: 'transparent' }}
+                          onMouseEnter={e => (e.currentTarget.style.background = 'rgba(212,135,58,0.08)')}
+                          onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+                        >
+                          <div className="flex items-center gap-2">
+                            <span className="text-[10px] px-1.5 py-0.5 rounded-md font-medium" style={{ background: item.category === 'Food' ? 'rgba(62,107,71,0.1)' : 'rgba(192,83,58,0.1)', color: item.category === 'Food' ? '#3E6B47' : '#C0533A' }}>
+                              {item.category}
+                            </span>
+                            <span className="text-sm" style={{ color: '#1C3A2A' }}>
+                              <HighlightedText text={item.name} query={itemName} />
+                            </span>
+                          </div>
+                          <span className="text-sm font-semibold" style={{ color: '#D4873A' }}>₹{item.price}</span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
                 <div className="grid grid-cols-2 gap-2">
                   <div>
                     <label className="text-xs font-medium mb-1 block" style={{ color: '#7A7A6E' }}>Qty</label>

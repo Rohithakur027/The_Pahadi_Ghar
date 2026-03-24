@@ -22,6 +22,15 @@ export interface OrderItem {
   addedAt: string;
 }
 
+export type NoteCategory = 'food' | 'request' | 'transport' | 'general';
+
+export interface StaffNote {
+  id: string;
+  text: string;
+  category: NoteCategory;
+  addedAt: string;
+}
+
 export interface Payment {
   id: string;
   roomId: string;
@@ -40,6 +49,7 @@ export interface Room {
   checkOutDate?: string;
   guest?: Guest;
   items: OrderItem[];
+  notes: StaffNote[];
   amountPaid: number;
   paymentStatus: PaymentStatus;
   groupBookingId?: string;
