@@ -1,8 +1,8 @@
 'use client';
 
-import { useState, useMemo } from 'react';
-import { format, parseISO, startOfMonth, endOfMonth, isWithinInterval } from 'date-fns';
-import { Plus, Trash2, ChevronLeft, ChevronRight, Filter, TrendingDown, IndianRupee } from 'lucide-react';
+import { useState, useMemo, useRef, useEffect } from 'react';
+import { format, parseISO, startOfMonth, endOfMonth, isWithinInterval, addDays, subMonths, addMonths } from 'date-fns';
+import { Plus, Trash2, ChevronLeft, ChevronRight, Filter, TrendingDown, IndianRupee, ChevronDown } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 interface Expense {
@@ -38,20 +38,47 @@ export default function ExpensesPage() {
   const [filterCategory, setFilterCategory] = useState<string>('All');
   const [viewMonth, setViewMonth] = useState(new Date());
   const [allTime, setAllTime] = useState(false);
+  const [viewMode, setViewMode] = useState<'month' | 'week'>('month');
+  const [weekStart, setWeekStart] = useState<Date>(() => {
+    const today = new Date();
+    const dayOfWeek = today.getDay(); // 0=Sun
+    return new Date(today.getFullYear(), today.getMonth(), today.getDate() - dayOfWeek);
+  });
+  const [showMonthPicker, setShowMonthPicker] = useState(false);
+  const monthPickerRef = useRef<HTMLDivElement>(null);
 
   const emptyForm = { category: 'Utilities', amount: '', date: format(new Date(), 'yyyy-MM-dd'), notes: '' };
   const [form, setForm] = useState(emptyForm);
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
 
-  // Filter by month
+  // Close month picker on outside click
+  useEffect(() => {
+    if (!showMonthPicker) return;
+    const handler = (e: MouseEvent) => {
+      if (monthPickerRef.current && !monthPickerRef.current.contains(e.target as Node)) {
+        setShowMonthPicker(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [showMonthPicker]);
+
+  const weekEnd = addDays(weekStart, 6);
+
+  // Filter by month or week
   const periodExpenses = useMemo(() => {
     if (allTime) return expenses;
+    if (viewMode === 'week') {
+      return expenses.filter(e => {
+        try { return isWithinInterval(parseISO(e.date), { start: weekStart, end: weekEnd }); } catch { return false; }
+      });
+    }
     const start = startOfMonth(viewMonth);
     const end = endOfMonth(viewMonth);
     return expenses.filter(e => {
       try { return isWithinInterval(parseISO(e.date), { start, end }); } catch { return false; }
     });
-  }, [expenses, viewMonth, allTime]);
+  }, [expenses, viewMonth, weekStart, weekEnd, viewMode, allTime]);
 
   // Filter by category
   const filtered = useMemo(() =>
@@ -99,6 +126,18 @@ export default function ExpensesPage() {
 
   const prevMonth = () => setViewMonth(m => new Date(m.getFullYear(), m.getMonth() - 1, 1));
   const nextMonth = () => setViewMonth(m => new Date(m.getFullYear(), m.getMonth() + 1, 1));
+  const prevWeek  = () => setWeekStart(d => addDays(d, -7));
+  const nextWeek  = () => setWeekStart(d => addDays(d, 7));
+
+  // Build month grid: 18 months back → 3 months ahead
+  const monthGrid = useMemo(() => {
+    const months: Date[] = [];
+    const base = new Date();
+    for (let i = -18; i <= 3; i++) {
+      months.push(addMonths(new Date(base.getFullYear(), base.getMonth(), 1), i));
+    }
+    return months;
+  }, []);
 
   return (
     <div className="min-h-screen" style={{ background: '#F7F3EE' }}>
@@ -125,7 +164,8 @@ export default function ExpensesPage() {
 
         {/* Period selector */}
         <div className="flex items-center justify-between gap-3 flex-wrap">
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
+            {/* All Time toggle */}
             <button
               onClick={() => setAllTime(v => !v)}
               className="px-3 py-1.5 rounded-xl text-xs font-semibold transition-all"
@@ -136,18 +176,88 @@ export default function ExpensesPage() {
             >
               All Time
             </button>
+
             {!allTime && (
-              <div className="flex items-center gap-1.5 rounded-xl px-2 py-1.5" style={{ background: 'rgba(28,58,42,0.06)' }}>
-                <button onClick={prevMonth} className="p-0.5 rounded-lg hover:bg-black/10">
-                  <ChevronLeft size={14} style={{ color: '#1C3A2A' }} />
-                </button>
-                <span className="text-xs font-semibold px-1" style={{ color: '#1C3A2A', minWidth: 90, textAlign: 'center' }}>
-                  {format(viewMonth, 'MMMM yyyy')}
-                </span>
-                <button onClick={nextMonth} className="p-0.5 rounded-lg hover:bg-black/10">
-                  <ChevronRight size={14} style={{ color: '#1C3A2A' }} />
-                </button>
-              </div>
+              <>
+                {/* Month / Week mode toggle */}
+                <div className="flex items-center gap-0.5 rounded-xl p-1" style={{ background: 'rgba(28,58,42,0.06)' }}>
+                  {(['month', 'week'] as const).map(m => (
+                    <button
+                      key={m}
+                      onClick={() => setViewMode(m)}
+                      className="px-3 py-1 rounded-lg text-xs font-semibold transition-all capitalize"
+                      style={{
+                        background: viewMode === m ? '#FFFDF9' : 'transparent',
+                        color: viewMode === m ? '#1C3A2A' : 'rgba(28,58,42,0.5)',
+                        boxShadow: viewMode === m ? '0 1px 3px rgba(28,58,42,0.1)' : 'none',
+                      }}
+                    >
+                      {m}
+                    </button>
+                  ))}
+                </div>
+
+                {/* Navigator */}
+                {viewMode === 'month' ? (
+                  <div className="relative flex items-center gap-1 rounded-xl px-2 py-1.5" style={{ background: 'rgba(28,58,42,0.06)' }} ref={monthPickerRef}>
+                    <button onClick={prevMonth} className="p-0.5 rounded-lg">
+                      <ChevronLeft size={14} style={{ color: '#1C3A2A' }} />
+                    </button>
+                    <button
+                      onClick={() => setShowMonthPicker(v => !v)}
+                      className="flex items-center gap-1 px-1 text-xs font-semibold rounded-lg"
+                      style={{ color: '#1C3A2A', minWidth: 80, justifyContent: 'center' }}
+                    >
+                      {format(viewMonth, 'MMM yyyy')}
+                      <ChevronDown size={11} style={{ opacity: 0.5 }} />
+                    </button>
+                    <button onClick={nextMonth} className="p-0.5 rounded-lg">
+                      <ChevronRight size={14} style={{ color: '#1C3A2A' }} />
+                    </button>
+
+                    {/* Month picker popup */}
+                    {showMonthPicker && (
+                      <div
+                        className="absolute top-full left-0 mt-2 z-50 rounded-2xl p-3 shadow-xl"
+                        style={{ background: '#FFFDF9', border: '1px solid rgba(28,58,42,0.12)', width: 220 }}
+                      >
+                        <div className="grid grid-cols-3 gap-1.5">
+                          {monthGrid.map(m => {
+                            const isSelected = format(m, 'yyyy-MM') === format(viewMonth, 'yyyy-MM');
+                            const isCurrentMonth = format(m, 'yyyy-MM') === format(new Date(), 'yyyy-MM');
+                            return (
+                              <button
+                                key={m.toISOString()}
+                                onClick={() => { setViewMonth(m); setShowMonthPicker(false); }}
+                                className="py-1.5 rounded-xl text-xs font-semibold transition-all"
+                                style={{
+                                  background: isSelected ? '#1C3A2A' : isCurrentMonth ? 'rgba(212,135,58,0.1)' : 'rgba(28,58,42,0.05)',
+                                  color: isSelected ? '#FFFDF9' : isCurrentMonth ? '#A36520' : '#1C3A2A',
+                                  border: isCurrentMonth && !isSelected ? '1px solid rgba(212,135,58,0.3)' : '1px solid transparent',
+                                }}
+                              >
+                                {format(m, 'MMM yy')}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-1 rounded-xl px-2 py-1.5" style={{ background: 'rgba(28,58,42,0.06)' }}>
+                    <button onClick={prevWeek} className="p-0.5 rounded-lg">
+                      <ChevronLeft size={14} style={{ color: '#1C3A2A' }} />
+                    </button>
+                    <span className="text-xs font-semibold px-1" style={{ color: '#1C3A2A', minWidth: 110, textAlign: 'center' }}>
+                      {format(weekStart, 'd MMM')} – {format(weekEnd, 'd MMM yy')}
+                    </span>
+                    <button onClick={nextWeek} className="p-0.5 rounded-lg">
+                      <ChevronRight size={14} style={{ color: '#1C3A2A' }} />
+                    </button>
+                  </div>
+                )}
+              </>
             )}
           </div>
 
@@ -176,7 +286,7 @@ export default function ExpensesPage() {
             <div className="flex items-center gap-2 mb-1">
               <TrendingDown size={14} style={{ color: '#D4873A' }} />
               <span className="text-[11px] font-semibold uppercase tracking-wide" style={{ color: 'rgba(255,255,255,0.5)' }}>
-                {allTime ? 'Total Spent' : format(viewMonth, 'MMM') + ' Total'}
+                {allTime ? 'Total Spent' : viewMode === 'week' ? `${format(weekStart, 'd')}–${format(weekEnd, 'd MMM')} Total` : format(viewMonth, 'MMM') + ' Total'}
               </span>
             </div>
             <p className="text-2xl font-bold" style={{ fontFamily: 'var(--font-playfair)', color: '#FFFDF9' }}>

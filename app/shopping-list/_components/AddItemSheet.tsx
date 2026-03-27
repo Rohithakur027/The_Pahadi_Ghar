@@ -33,9 +33,7 @@ function HighlightedText({ text, query }: { text: string; query: string }) {
   return (
     <>
       {text.slice(0, idx)}
-      <span style={{ background: '#D4873A', color: '#fff', borderRadius: 3, padding: '0 2px' }}>
-        {text.slice(idx, idx + query.length)}
-      </span>
+      <span style={{ fontWeight: 700 }}>{text.slice(idx, idx + query.length)}</span>
       {text.slice(idx + query.length)}
     </>
   );
@@ -81,7 +79,7 @@ export default function AddItemSheet({ onAdd, onClose, addedInReview }: Props) {
     >
       <div
         ref={sheetRef}
-        className="w-full max-w-lg rounded-t-3xl px-5 pt-5 pb-8 space-y-4"
+        className="w-full max-w-lg rounded-t-3xl px-5 pt-5 pb-8 space-y-4 slide-up"
         style={{ background: '#FFFDF9', maxHeight: '90vh', overflowY: 'auto' }}
       >
         {/* Header */}

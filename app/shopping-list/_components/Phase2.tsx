@@ -251,7 +251,6 @@ export default function Phase2({ items, shopkeeperName, shopkeeperPhone, listCat
         <AddItemSheet
           onAdd={onAddItem}
           onClose={() => setShowSheet(false)}
-          defaultAddedByRole="manager"
           addedInReview
         />
       )}

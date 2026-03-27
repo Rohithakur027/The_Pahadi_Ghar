@@ -1,13 +1,13 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useHomestay } from '@/context/HomestayContext';
 import {
   format, startOfMonth, endOfMonth, eachDayOfInterval,
-  getDay, isSameDay, isBefore, parseISO, isWithinInterval, startOfDay,
+  getDay, isSameDay, isBefore, parseISO, isWithinInterval, startOfDay, addMonths,
 } from 'date-fns';
-import { ChevronLeft, ChevronRight, Mountain } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Mountain, ChevronDown } from 'lucide-react';
 import { Room, BlockedBooking } from '@/types';
 
 const DAYS_OF_WEEK = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -34,6 +34,28 @@ export default function CalendarPage() {
   const { rooms, blockedBookings } = useHomestay();
   const router = useRouter();
   const [currentDate, setCurrentDate] = useState(new Date());
+  const [showMonthPicker, setShowMonthPicker] = useState(false);
+  const monthPickerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!showMonthPicker) return;
+    const handler = (e: MouseEvent) => {
+      if (monthPickerRef.current && !monthPickerRef.current.contains(e.target as Node)) {
+        setShowMonthPicker(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [showMonthPicker]);
+
+  const monthGrid = useMemo(() => {
+    const months: Date[] = [];
+    const base = new Date();
+    for (let i = -18; i <= 3; i++) {
+      months.push(addMonths(new Date(base.getFullYear(), base.getMonth(), 1), i));
+    }
+    return months;
+  }, []);
 
   const monthStart = startOfMonth(currentDate);
   const monthEnd = endOfMonth(currentDate);
@@ -73,9 +95,49 @@ export default function CalendarPage() {
           >
             <ChevronLeft size={16} style={{ color: '#1C3A2A' }} />
           </button>
-          <h2 className="text-lg font-bold" style={{ fontFamily: 'var(--font-playfair)', color: '#1C3A2A' }}>
-            {format(currentDate, 'MMMM yyyy')}
-          </h2>
+
+          {/* Clickable month → opens picker */}
+          <div className="relative" ref={monthPickerRef}>
+            <button
+              onClick={() => setShowMonthPicker(v => !v)}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl transition-all active:scale-95"
+              style={{ background: showMonthPicker ? 'rgba(28,58,42,0.08)' : 'transparent' }}
+            >
+              <h2 className="text-lg font-bold" style={{ fontFamily: 'var(--font-playfair)', color: '#1C3A2A' }}>
+                {format(currentDate, 'MMMM yyyy')}
+              </h2>
+              <ChevronDown size={14} style={{ color: 'rgba(28,58,42,0.4)', marginTop: 2 }} />
+            </button>
+
+            {showMonthPicker && (
+              <div
+                className="absolute top-full left-1/2 -translate-x-1/2 mt-2 z-50 rounded-2xl p-3 shadow-xl"
+                style={{ background: '#FFFDF9', border: '1px solid rgba(28,58,42,0.12)', width: 230 }}
+              >
+                <div className="grid grid-cols-3 gap-1.5">
+                  {monthGrid.map(m => {
+                    const isSelected = format(m, 'yyyy-MM') === format(currentDate, 'yyyy-MM');
+                    const isCurrentMonth = format(m, 'yyyy-MM') === format(new Date(), 'yyyy-MM');
+                    return (
+                      <button
+                        key={m.toISOString()}
+                        onClick={() => { setCurrentDate(m); setShowMonthPicker(false); }}
+                        className="py-1.5 rounded-xl text-xs font-semibold transition-all"
+                        style={{
+                          background: isSelected ? '#1C3A2A' : isCurrentMonth ? 'rgba(212,135,58,0.1)' : 'rgba(28,58,42,0.05)',
+                          color: isSelected ? '#FFFDF9' : isCurrentMonth ? '#A36520' : '#1C3A2A',
+                          border: isCurrentMonth && !isSelected ? '1px solid rgba(212,135,58,0.3)' : '1px solid transparent',
+                        }}
+                      >
+                        {format(m, 'MMM yy')}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+          </div>
+
           <button
             onClick={nextMonth}
             className="p-2 rounded-xl transition-all active:scale-90"
