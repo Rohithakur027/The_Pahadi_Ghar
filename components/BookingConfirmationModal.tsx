@@ -407,17 +407,17 @@ export default function BookingConfirmationModal({ data, onClose }: Props) {
           {/* ── Header ── */}
           <div style={{
             background: 'linear-gradient(160deg, #1C3A2A 0%, #2D5C40 100%)',
-            padding: '36px 48px 28px',
+            padding: '22px 40px 18px',
           }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
               <div>
-                <div style={{ color: '#D4873A', fontSize: 10, fontWeight: 700, letterSpacing: 3, textTransform: 'uppercase', marginBottom: 6, fontFamily: 'Arial, sans-serif' }}>
+                <div style={{ color: '#D4873A', fontSize: 9, fontWeight: 700, letterSpacing: 3, textTransform: 'uppercase', marginBottom: 4, fontFamily: 'Arial, sans-serif' }}>
                   Tirthan Valley, Himachal Pradesh
                 </div>
-                <div style={{ color: '#FFFDF9', fontSize: 28, fontWeight: 700, letterSpacing: '-0.5px', lineHeight: 1.1 }}>
+                <div style={{ color: '#FFFDF9', fontSize: 24, fontWeight: 700, letterSpacing: '-0.5px', lineHeight: 1.1 }}>
                   The Pahadi Ghar
                 </div>
-                <div style={{ color: 'rgba(255,255,255,0.45)', fontSize: 12, marginTop: 4, fontFamily: 'Arial, sans-serif' }}>
+                <div style={{ color: 'rgba(255,255,255,0.45)', fontSize: 11, marginTop: 3, fontFamily: 'Arial, sans-serif' }}>
                   Your Himalayan Homestay
                 </div>
               </div>
@@ -442,23 +442,23 @@ export default function BookingConfirmationModal({ data, onClose }: Props) {
               </div>
             </div>
 
-            <div style={{ marginTop: 24, paddingTop: 18, borderTop: '1px solid rgba(255,255,255,0.12)' }}>
-              <div style={{ color: 'rgba(255,255,255,0.5)', fontSize: 10, letterSpacing: 2, textTransform: 'uppercase', fontFamily: 'Arial, sans-serif', marginBottom: 4 }}>
+            <div style={{ marginTop: 14, paddingTop: 12, borderTop: '1px solid rgba(255,255,255,0.12)' }}>
+              <div style={{ color: 'rgba(255,255,255,0.5)', fontSize: 9, letterSpacing: 2, textTransform: 'uppercase', fontFamily: 'Arial, sans-serif', marginBottom: 3 }}>
                 Booking Confirmation
               </div>
-              <div style={{ color: '#FFFDF9', fontSize: 20, fontWeight: 600 }}>
+              <div style={{ color: '#FFFDF9', fontSize: 17, fontWeight: 600 }}>
                 {data.guestName}
               </div>
             </div>
           </div>
 
           {/* ── Body ── */}
-          <div style={{ padding: '0 48px 40px' }}>
+          <div style={{ padding: '0 40px 24px' }}>
 
             {/* Section helper */}
             {/* Guest Information */}
-            <div style={{ marginTop: 28, marginBottom: 12, paddingBottom: 6, borderBottom: '2px solid #1C3A2A', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: 2, textTransform: 'uppercase', color: '#1C3A2A', fontFamily: 'Arial, sans-serif' }}>Guest Information</span>
+            <div style={{ marginTop: 18, marginBottom: 8, paddingBottom: 5, borderBottom: '2px solid #1C3A2A', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: 2, textTransform: 'uppercase', color: '#1C3A2A', fontFamily: 'Arial, sans-serif' }}>Guest Information</span>
             </div>
 
             {[
@@ -466,15 +466,15 @@ export default function BookingConfirmationModal({ data, onClose }: Props) {
               { label: 'Phone',         value: `+91 ${data.phone}` },
               { label: 'Guests',        value: guestCount },
             ].map(row => (
-              <div key={row.label} style={{ display: 'flex', justifyContent: 'space-between', padding: '9px 0', borderBottom: '1px solid #F0EDE8' }}>
-                <span style={{ fontSize: 13, color: '#5A5A52', fontFamily: 'Arial, sans-serif', minWidth: 160 }}>{row.label}</span>
-                <span style={{ fontSize: 13, fontWeight: 600, color: '#1A1A1A', textAlign: 'right', flex: 1 }}>{row.value}</span>
+              <div key={row.label} style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0', borderBottom: '1px solid #F0EDE8' }}>
+                <span style={{ fontSize: 12, color: '#5A5A52', fontFamily: 'Arial, sans-serif', minWidth: 150 }}>{row.label}</span>
+                <span style={{ fontSize: 12, fontWeight: 600, color: '#1A1A1A', textAlign: 'right', flex: 1 }}>{row.value}</span>
               </div>
             ))}
 
             {/* Booking Details */}
-            <div style={{ marginTop: 24, marginBottom: 12, paddingBottom: 6, borderBottom: '2px solid #1C3A2A' }}>
-              <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: 2, textTransform: 'uppercase', color: '#1C3A2A', fontFamily: 'Arial, sans-serif' }}>Booking Details</span>
+            <div style={{ marginTop: 16, marginBottom: 8, paddingBottom: 5, borderBottom: '2px solid #1C3A2A' }}>
+              <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: 2, textTransform: 'uppercase', color: '#1C3A2A', fontFamily: 'Arial, sans-serif' }}>Booking Details</span>
             </div>
 
             {[
@@ -485,15 +485,15 @@ export default function BookingConfirmationModal({ data, onClose }: Props) {
               { label: 'Meal Plan', value: MEAL_LABELS[data.mealPlan] },
               ...(data.specialRequests ? [{ label: 'Special Requests', value: data.specialRequests }] : []),
             ].map((row, i) => (
-              <div key={i} style={{ display: 'flex', justifyContent: 'space-between', padding: '9px 0', borderBottom: '1px solid #F0EDE8' }}>
-                <span style={{ fontSize: 13, color: '#5A5A52', fontFamily: 'Arial, sans-serif', minWidth: 160 }}>{row.label}</span>
-                <span style={{ fontSize: 13, fontWeight: 600, color: '#1A1A1A', textAlign: 'right', flex: 1 }}>{row.value}</span>
+              <div key={i} style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0', borderBottom: '1px solid #F0EDE8' }}>
+                <span style={{ fontSize: 12, color: '#5A5A52', fontFamily: 'Arial, sans-serif', minWidth: 150 }}>{row.label}</span>
+                <span style={{ fontSize: 12, fontWeight: 600, color: '#1A1A1A', textAlign: 'right', flex: 1 }}>{row.value}</span>
               </div>
             ))}
 
             {/* Payment Details */}
-            <div style={{ marginTop: 24, marginBottom: 12, paddingBottom: 6, borderBottom: '2px solid #1C3A2A' }}>
-              <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: 2, textTransform: 'uppercase', color: '#1C3A2A', fontFamily: 'Arial, sans-serif' }}>Payment Details</span>
+            <div style={{ marginTop: 16, marginBottom: 8, paddingBottom: 5, borderBottom: '2px solid #1C3A2A' }}>
+              <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: 2, textTransform: 'uppercase', color: '#1C3A2A', fontFamily: 'Arial, sans-serif' }}>Payment Details</span>
             </div>
 
             {[
@@ -502,16 +502,16 @@ export default function BookingConfirmationModal({ data, onClose }: Props) {
               { label: 'Payment Method',  value: METHOD_LABELS[data.paymentMethod] },
               ...(data.transactionId ? [{ label: 'Transaction ID', value: data.transactionId }] : []),
             ].map((row, i) => (
-              <div key={i} style={{ display: 'flex', justifyContent: 'space-between', padding: '9px 0', borderBottom: '1px solid #F0EDE8' }}>
-                <span style={{ fontSize: 13, color: '#5A5A52', fontFamily: 'Arial, sans-serif', minWidth: 160 }}>{row.label}</span>
-                <span style={{ fontSize: 13, fontWeight: (row as any).bold ? 700 : 600, color: (row as any).color || '#1A1A1A', textAlign: 'right', flex: 1 }}>{row.value}</span>
+              <div key={i} style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0', borderBottom: '1px solid #F0EDE8' }}>
+                <span style={{ fontSize: 12, color: '#5A5A52', fontFamily: 'Arial, sans-serif', minWidth: 150 }}>{row.label}</span>
+                <span style={{ fontSize: 12, fontWeight: (row as any).bold ? 700 : 600, color: (row as any).color || '#1A1A1A', textAlign: 'right', flex: 1 }}>{row.value}</span>
               </div>
             ))}
 
             {/* Balance Due */}
             <div style={{
-              marginTop: 16,
-              padding: '14px 20px',
+              marginTop: 12,
+              padding: '10px 16px',
               borderRadius: 6,
               background: data.balanceDue > 0 ? '#FEF3F0' : '#F0FDF4',
               border: `1.5px solid ${data.balanceDue > 0 ? '#C0533A' : '#3E6B47'}`,
@@ -519,20 +519,20 @@ export default function BookingConfirmationModal({ data, onClose }: Props) {
               justifyContent: 'space-between',
               alignItems: 'center',
             }}>
-              <span style={{ fontSize: 13, fontWeight: 700, color: data.balanceDue > 0 ? '#C0533A' : '#3E6B47', fontFamily: 'Arial, sans-serif' }}>
+              <span style={{ fontSize: 12, fontWeight: 700, color: data.balanceDue > 0 ? '#C0533A' : '#3E6B47', fontFamily: 'Arial, sans-serif' }}>
                 {data.balanceDue > 0 ? 'Balance Due at Check-in' : 'Fully Paid'}
               </span>
-              <span style={{ fontSize: 18, fontWeight: 700, color: data.balanceDue > 0 ? '#C0533A' : '#3E6B47' }}>
+              <span style={{ fontSize: 16, fontWeight: 700, color: data.balanceDue > 0 ? '#C0533A' : '#3E6B47' }}>
                 Rs. {formatINR(data.balanceDue)}
               </span>
             </div>
 
             {/* Footer */}
-            <div style={{ marginTop: 36, paddingTop: 20, borderTop: '1px solid #E8E4DF', textAlign: 'center' }}>
-              <div style={{ fontSize: 13, color: '#1C3A2A', fontWeight: 600, marginBottom: 4 }}>
+            <div style={{ marginTop: 20, paddingTop: 12, borderTop: '1px solid #E8E4DF', textAlign: 'center' }}>
+              <div style={{ fontSize: 12, color: '#1C3A2A', fontWeight: 600, marginBottom: 3 }}>
                 We look forward to welcoming you!
               </div>
-              <div style={{ fontSize: 11, color: '#9A9A92', fontFamily: 'Arial, sans-serif' }}>
+              <div style={{ fontSize: 10, color: '#9A9A92', fontFamily: 'Arial, sans-serif' }}>
                 The Pahadi Ghar · Tirthan Valley, Himachal Pradesh
               </div>
             </div>
