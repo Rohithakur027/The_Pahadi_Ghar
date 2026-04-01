@@ -143,7 +143,8 @@ export default function BookingConfirmationModal({ data, onClose }: Props) {
   const generateBlob = async (): Promise<Blob | null> => {
     if (!pdfRef.current) return null;
     const html2canvas = (await import('html2canvas')).default;
-    const jsPDF       = (await import('jspdf')).default;
+    const jsPDFMod    = await import('jspdf');
+    const jsPDF       = (jsPDFMod as any).jsPDF ?? jsPDFMod.default;
 
     const el = pdfRef.current;
     const canvas = await html2canvas(el, {

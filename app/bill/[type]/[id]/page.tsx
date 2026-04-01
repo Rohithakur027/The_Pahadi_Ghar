@@ -118,7 +118,8 @@ export default function BillPage({ params }: { params: Promise<{ type: string; i
     setDownloading(true);
     try {
       const html2canvas = (await import('html2canvas')).default;
-      const jsPDF = (await import('jspdf')).default;
+      const jsPDFMod = await import('jspdf');
+      const jsPDF = (jsPDFMod as any).jsPDF ?? jsPDFMod.default;
 
       const el = pdfRef.current;
       const canvas = await html2canvas(el, {
